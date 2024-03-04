@@ -1,20 +1,26 @@
-cloudpickle==0.4.0
+cloudpickle>=1.5.0
+cmake>=3.5
 exifread==2.1.2
 flask==2.3.2
 fpdf2==2.4.6
 joblib==0.14.1
 matplotlib
 networkx==2.5
-numpy>=1.19
+numpy
+pathlib
 Pillow>=8.1.1
 pyproj>=1.9.5.1
+pyqt5<5.13
+pyqtwebengine<5.13
 pytest==3.0.7
 python-dateutil>=2.7
-pyyaml==5.4
+pyyaml
+ruamel-yaml
 scipy>=1.10.0
+setuptools
 Sphinx==4.2.0
 six
 xmltodict==0.10.2
 wheel
-opencv-python==4.5.1.48 ; sys_platform == "win32"
-opencv-python ; sys_platform == "linux"
+opencv-python==4.5.1.48 ; sys_platform == "darwin"
+opencv-python ; sys_platform == "darwin"
