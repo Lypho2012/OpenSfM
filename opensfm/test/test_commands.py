@@ -2,7 +2,8 @@
 import argparse
 from os.path import join
 
-from opensfm import commands, dataset
+#from opensfm import commands, dataset
+from . import commands, dataset
 from opensfm.test import data_generation, utils
 
 
@@ -54,6 +55,7 @@ def test_run_all(tmpdir) -> None:
     check_reconstruction(data)
     check_prior(data, output_rec_path)
 
+test_run_all("data")
 
 def check_reconstruction(data: dataset.DataSet) -> None:
     reconstruction = data.load_reconstruction()

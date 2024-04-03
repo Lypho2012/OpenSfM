@@ -9,6 +9,7 @@ import setuptools
 from sphinx.setup_command import BuildDoc
 from wheel.bdist_wheel import bdist_wheel
 
+input("Press Enter to continue: ")
 VERSION = (0, 5, 2)
 
 
