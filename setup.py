@@ -9,7 +9,6 @@ import setuptools
 from sphinx.setup_command import BuildDoc
 from wheel.bdist_wheel import bdist_wheel
 
-input("Press Enter to continue: ")
 VERSION = (0, 5, 2)
 
 
@@ -35,6 +34,7 @@ def configure_c_extension():
         "cmake",
         "../opensfm/src",
         "-DPYTHON_EXECUTABLE=" + sys.executable,
+        #"-DCMAKE_BUILD_TYPE=Debug . -B cmake_build"
     ]
     if sys.platform == "win32":
         cmake_command += [

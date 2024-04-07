@@ -55,8 +55,6 @@ def test_run_all(tmpdir) -> None:
     check_reconstruction(data)
     check_prior(data, output_rec_path)
 
-test_run_all("data")
-
 def check_reconstruction(data: dataset.DataSet) -> None:
     reconstruction = data.load_reconstruction()
     assert len(reconstruction[0].shots) == 3

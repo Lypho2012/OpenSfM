@@ -403,6 +403,7 @@ def find_neighboring_images(
         for track in tracks:
             if track in reconstruction.points:
                 p = reconstruction.points[track].coordinates
+                breakpoint()
                 theta = angle_between_points(p, C1, C2)
                 if theta > theta_min and theta < theta_max:
                     score += 1
