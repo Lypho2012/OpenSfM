@@ -23,7 +23,6 @@ def triangle_mesh(
         return [], []
 
     shot = r.shots[shot_id]
-    breakpoint()
     if shot.camera.projection_type in [
         "perspective",
         "brown",

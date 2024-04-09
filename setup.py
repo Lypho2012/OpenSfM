@@ -79,6 +79,7 @@ setuptools.setup(
     ],
     package_data={
         "opensfm": [
+            "pybsi.*",
             "pybundle.*",
             "pygeo.*",
             "pygeometry.*",

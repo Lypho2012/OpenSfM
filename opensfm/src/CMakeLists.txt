@@ -88,6 +88,9 @@ include_directories(third_party/vlfeat)
 
 ####### Bsi Functions #######
 pybind11_add_module(pybsi bsi_functions.cpp)
+target_link_libraries(pybsi PRIVATE pybind11)
+target_include_directories(pybsi PRIVATE ${GLOG_INCLUDE_DIR})
+set_target_properties(pybsi PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${opensfm_SOURCE_DIR}/..")
 
 ####### Debugging #######
 if (CMAKE_BUILD_TYPE MATCHES DEBUG)

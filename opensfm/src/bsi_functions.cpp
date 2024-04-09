@@ -16,7 +16,7 @@ public:
     }
     T arr;
 }*/
-/*std::vector<long> listToVec(py::list a) {
+std::vector<long> listToVec(py::list a) {
     std::vector<long> res;
     for (py::handle item: a) {
         try {
@@ -25,25 +25,16 @@ public:
     }
     return res;
 }
-long dot(py::list a, py::list b) {
+py::object dot(py::list a, py::list b) {
     BsiSigned<uint64_t> bsi;
     BsiAttribute<uint64_t> *bsi_a = bsi.buildBsiAttributeFromVectorSigned(listToVec(a),0.5);
     BsiAttribute<uint64_t> *bsi_b = bsi.buildBsiAttributeFromVectorSigned(listToVec(a),0.5);
     //BsiAttribute<uint64_t> *bsi_a = bsi.buildBsiAttributeFromVectorSigned(py::cast<std::vector<long>> (a),0.5);
     //BsiAttribute<uint64_t> *bsi_b = bsi.buildBsiAttributeFromVectorSigned(py::cast<std::vector<long>> (a),0.5);
-    return bsi_a->dot(bsi_b);
+    return py::cast(static_cast<int64_t>(bsi_a->dot(bsi_b)));
 }
 PYBIND11_MODULE(pybsi,m) {
     //py::class_<Bsi<BsiAttribute<u_int64_t>>>(m,"bsi")
     //    .def(py::init<>());
-    m.def("dot", &dot);
-}*/
-int add(int i, int j) {
-    return i + j;
-}
-
-PYBIND11_MODULE(pybsi, m) {
-    m.doc() = "pybind11 example plugin"; // optional module docstring
-
-    m.def("add", &add, "A function that adds two numbers");
+    m.def("dot", &dot, "dot product between 2 vectors");
 }
