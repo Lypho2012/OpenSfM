@@ -13,7 +13,6 @@ logging.getLogger("exifread").setLevel(logging.WARNING)
 
 def run_dataset(data: DataSetBase) -> None:
     """Extract metadata from images' EXIF tag."""
-    input("Press Enter to continue ")
     exif_overrides = {}
     if data.exif_overrides_exists():
         exif_overrides = data.load_exif_overrides()

@@ -86,6 +86,9 @@ add_subdirectory(third_party/vlfeat)
 
 include_directories(third_party/vlfeat)
 
+####### Bsi Functions #######
+pybind11_add_module(pybsi bsi_functions.cpp)
+
 ####### Debugging #######
 if (CMAKE_BUILD_TYPE MATCHES DEBUG)
     add_executable(debug_c_extension
