@@ -213,16 +213,42 @@ void DepthmapEstimator::ComputePatchMatch(DepthmapEstimatorResult *result) {
 
 void DepthmapEstimator::ComputePatchMatchSample(
     DepthmapEstimatorResult *result) {
+  //auto t = std::chrono::high_resolution_clock::now();
+  //std::cout << "start ComputePatchMatchSample \n";
   AssignMatrices(result);
+  //auto t1 = std::chrono::high_resolution_clock::now();
+  //auto duration = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t);
+  //std::cout << "AssignMatrices: "<< duration.count() << "\n";
   RandomInitialization(result, true);
+  //auto t2 = std::chrono::high_resolution_clock::now();
+  //duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1);
+  //std::cout << "RandomInitialization: " << duration.count() << "\n";
   ComputeIgnoreMask(result);
+  //auto t3 = std::chrono::high_resolution_clock::now();
+  //duration = std::chrono::duration_cast<std::chrono::microseconds>(t3 - t2);
+  //std::cout << "ComputeIgnoreMask: " << duration.count() << "\n";
+  //std::cout << ((patch_size_ - 1) / 2) << " " << result->depth.rows << " " << result->depth.cols << "\n";
 
   for (int i = 0; i < patchmatch_iterations_; ++i) {
+    std::cout << i << "\n";
+    //auto t31 = std::chrono::high_resolution_clock::now();
     PatchMatchForwardPass(result, true);
+    //auto t32 = std::chrono::high_resolution_clock::now();
+    //duration = std::chrono::duration_cast<std::chrono::microseconds>(t32 - t31);
+    //std::cout << "PatchMatchForwardPass: " << duration.count() << "\n";
     PatchMatchBackwardPass(result, true);
+    //auto t33 = std::chrono::high_resolution_clock::now();
+    //duration = std::chrono::duration_cast<std::chrono::microseconds>(t33 - t32);
+    //std::cout << "PatchMatchBackwardPass: " << duration.count() << "\n";
   }
+  //auto t4 = std::chrono::high_resolution_clock::now();
+  //duration = std::chrono::duration_cast<std::chrono::microseconds>(t4 - t3);
+  //std::cout << "patchmatch_iterations_: " << duration.count() << "\n";
 
   PostProcess(result);
+  //auto t5 = std::chrono::high_resolution_clock::now();
+  //duration = std::chrono::duration_cast<std::chrono::microseconds>(t5 - t4);
+  //std::cout << "PostProcess: " << duration.count() << "\n";
 }
 
 void DepthmapEstimator::AssignMatrices(DepthmapEstimatorResult *result) {
@@ -283,6 +309,7 @@ void DepthmapEstimator::PatchMatchForwardPass(DepthmapEstimatorResult *result,
                                               bool sample) {
   int adjacent[2][2] = {{-1, 0}, {0, -1}};
   int hpz = (patch_size_ - 1) / 2;
+  //std::cout << hpz << " " << result->depth.rows << " " << result->depth.cols << "\n";
   for (int i = hpz; i < result->depth.rows - hpz; ++i) {
     for (int j = hpz; j < result->depth.cols - hpz; ++j) {
       PatchMatchUpdatePixel(result, i, j, adjacent, sample);

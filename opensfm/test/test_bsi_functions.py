@@ -4,17 +4,6 @@ from os.path import abspath, dirname, join
 sys.path.insert(0, abspath(join(dirname("opensfm/"), "..")))
 from opensfm import pybsi
 
-import itertools
-import logging
-from typing import Any, Tuple, List
-
-import numpy as np
-import scipy.spatial
-from opensfm import pygeometry, pymap, types
-
-
-logger: logging.Logger = logging.getLogger(__name__)
-
 # Simple dot product test case
 a1 = [1, 2, 3]
 a2 = [1,2,3]

@@ -44,6 +44,7 @@ def match_images(
     exifs = {im: data.load_exif(im) for im in all_images}
 
     # Generate pairs for matching
+    logger.info("Start match_candidates_from_metadata")
     pairs, preport = pairs_selection.match_candidates_from_metadata(
         ref_images,
         cand_images,
@@ -51,6 +52,7 @@ def match_images(
         data,
         config_override,
     )
+    logger.info("stop match_candidates_from_metadata")
 
     # Match them !
     return (
@@ -67,6 +69,7 @@ def match_images_with_pairs(
     poses: Optional[Dict[str, pygeometry.Pose]] = None,
 ) -> Dict[Tuple[str, str], List[Tuple[int, int]]]:
     """Perform pair matchings given pairs."""
+    logger.info("Start match_candidates_from_metadata")
     cameras = data.load_camera_models()
     args = list(match_arguments(pairs, data, config_override, cameras, exifs, poses))
 
@@ -92,6 +95,7 @@ def match_images_with_pairs(
     resulting_pairs = {}
     for im1, im2, m in matches:
         resulting_pairs[im1, im2] = m
+    logger.info("Stop match_candidates_from_metadata")
     return resulting_pairs
 
 
@@ -786,7 +790,7 @@ def robust_match_fundamental(
 
     p1 = p1[matches[:, 0]][:, :2].copy()
     p2 = p2[matches[:, 1]][:, :2].copy()
-
+    
     FM_RANSAC = cv2.FM_RANSAC if context.OPENCV3 else cv2.cv.CV_FM_RANSAC
     threshold = config["robust_matching_threshold"]
     F, mask = cv2.findFundamentalMat(p1, p2, FM_RANSAC, threshold, 0.9999)

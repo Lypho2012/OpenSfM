@@ -10,6 +10,7 @@
 
 #include <stdexcept>
 #include <string>
+#include <chrono>
 
 #include "bundle/data/bias.h"
 
@@ -560,6 +561,7 @@ struct AddCameraPriorError {
 void BundleAdjuster::Run() {
   ceres::Problem problem;
 
+  auto t1 = std::chrono::high_resolution_clock::now();
   // Add cameras
   for (auto &[_, cam] : cameras_) {
     auto &data = cam.GetValueData();
@@ -589,6 +591,8 @@ void BundleAdjuster::Run() {
       }
     }
   }
+  auto t2 = std::chrono::high_resolution_clock::now();
+  std::cout << "2: " << std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() << "\n";
 
   // Add cameras biases
   for (auto &b : bias_) {
@@ -600,6 +604,8 @@ void BundleAdjuster::Run() {
       problem.SetParameterBlockConstant(data.data());
     }
   }
+  auto t3 = std::chrono::high_resolution_clock::now();
+  std::cout << "3: " << std::chrono::duration_cast<std::chrono::microseconds>(t3 - t2).count() << "\n";
 
   // Add rig cameras
   for (auto &rc : rig_cameras_) {
@@ -611,6 +617,8 @@ void BundleAdjuster::Run() {
       problem.SetParameterBlockConstant(data.data());
     }
   }
+  auto t4 = std::chrono::high_resolution_clock::now();
+  std::cout << "4: " << std::chrono::duration_cast<std::chrono::microseconds>(t4 - t3).count() << "\n";
 
   // Add rig instances
   for (auto &ri : rig_instances_) {
@@ -622,6 +630,8 @@ void BundleAdjuster::Run() {
       problem.SetParameterBlockConstant(data.data());
     }
   }
+  auto t5 = std::chrono::high_resolution_clock::now();
+  std::cout << "5: " << std::chrono::duration_cast<std::chrono::microseconds>(t5 - t4).count() << "\n";
 
   // Add points
   for (auto &p : points_) {
@@ -633,6 +643,8 @@ void BundleAdjuster::Run() {
       problem.SetParameterBlockConstant(data.data());
     }
   }
+  auto t6 = std::chrono::high_resolution_clock::now();
+  std::cout << "6: " << std::chrono::duration_cast<std::chrono::microseconds>(t6 - t5).count() << "\n";
 
   // Reconstructions
   for (auto &i : reconstructions_) {
@@ -648,6 +660,8 @@ void BundleAdjuster::Run() {
       }
     }
   }
+  auto t7 = std::chrono::high_resolution_clock::now();
+  std::cout << "7: " << std::chrono::duration_cast<std::chrono::microseconds>(t7 - t6).count() << "\n";
 
   // New generic prior errors (only rig instances + rig models + points for now)
   for (auto &i : points_) {
@@ -671,6 +685,8 @@ void BundleAdjuster::Run() {
     problem.AddResidualBlock(cost_function, nullptr,
                              i.second.GetValueData().data());
   }
+  auto t8 = std::chrono::high_resolution_clock::now();
+  std::cout << "8: " << std::chrono::duration_cast<std::chrono::microseconds>(t8 - t7).count() << "\n";
 
   // Gather scale groups for rig instance priors
   std::map<std::string, int> std_dev_group_remap;
@@ -687,6 +703,8 @@ void BundleAdjuster::Run() {
     std_dev_group_remap[scale_group] = index;
   }
   std::vector<double> std_deviations(std_dev_group_remap.size(), 1.0);
+  auto t9 = std::chrono::high_resolution_clock::now();
+  std::cout << "9: " << std::chrono::duration_cast<std::chrono::microseconds>(t9 - t8).count() << "\n";
 
   // Add regularizer term if we're adjusting for standard deviation, or lock
   // them up.
@@ -705,6 +723,8 @@ void BundleAdjuster::Run() {
       problem.SetParameterBlockConstant(data);
     }
   }
+  auto t10 = std::chrono::high_resolution_clock::now();
+  std::cout << "10: " << std::chrono::duration_cast<std::chrono::microseconds>(t10 - t9).count() << "\n";
 
   for (auto &i : rig_instances_) {
     if (!i.second.HasPrior()) {
@@ -739,6 +759,8 @@ void BundleAdjuster::Run() {
         cost_function, nullptr, i.second.GetValueData().data(),
         maybe_bias->second.GetValueData().data(), scale_param);
   }
+  auto t11 = std::chrono::high_resolution_clock::now();
+  std::cout << "11: " << std::chrono::duration_cast<std::chrono::microseconds>(t11 - t10).count() << "\n";
   for (auto &rc : rig_cameras_) {
     if (!rc.second.HasPrior()) {
       continue;
@@ -752,12 +774,16 @@ void BundleAdjuster::Run() {
     problem.AddResidualBlock(cost_function, nullptr,
                              rc.second.GetValueData().data());
   }
+  auto t12 = std::chrono::high_resolution_clock::now();
+  std::cout << "12: " << std::chrono::duration_cast<std::chrono::microseconds>(t12 - t11).count() << "\n";
   // Add internal parameter priors blocks
   for (auto &i : cameras_) {
     const auto projection_type = i.second.GetValue().GetProjectionType();
     geometry::Dispatch<AddCameraPriorError>(projection_type, i.second,
                                             &problem);
   }
+  auto t13 = std::chrono::high_resolution_clock::now();
+  std::cout << "13: " << std::chrono::duration_cast<std::chrono::microseconds>(t13 - t12).count() << "\n";
 
   // Add reprojection error blocks
   ceres::LossFunction *projection_loss =
@@ -772,6 +798,8 @@ void BundleAdjuster::Run() {
     geometry::Dispatch<AddProjectionError>(
         projection_type, use_analytic_, observation, projection_loss, &problem);
   }
+  auto t14 = std::chrono::high_resolution_clock::now();
+  std::cout << "14: " << std::chrono::duration_cast<std::chrono::microseconds>(t14 - t13).count() << "\n";
 
   // Add relative motion errors
   for (auto &rp : relative_motions_) {
@@ -812,6 +840,8 @@ void BundleAdjuster::Run() {
     problem.AddResidualBlock(cost_function, relative_motion_loss,
                              parameter_blocks);
   }
+  auto t15 = std::chrono::high_resolution_clock::now();
+  std::cout << "15: " << std::chrono::duration_cast<std::chrono::microseconds>(t15 - t14).count() << "\n";
 
   // Add relative rotation errors
   ceres::LossFunction *relative_rotation_loss =
@@ -857,6 +887,8 @@ void BundleAdjuster::Run() {
     problem.AddResidualBlock(cost_function, relative_rotation_loss,
                              parameter_blocks);
   }
+  auto t16 = std::chrono::high_resolution_clock::now();
+  std::cout << "16: " << std::chrono::duration_cast<std::chrono::microseconds>(t16 - t15).count() << "\n";
 
   // Add common position errors
   ceres::LossFunction *common_position_loss = nullptr;
@@ -900,6 +932,8 @@ void BundleAdjuster::Run() {
     problem.AddResidualBlock(cost_function, common_position_loss,
                              parameter_blocks);
   }
+  auto t17 = std::chrono::high_resolution_clock::now();
+  std::cout << "17: " << std::chrono::duration_cast<std::chrono::microseconds>(t17 - t16).count() << "\n";
 
   // Add heatmap cost
   for (const auto &a : absolute_positions_heatmaps_) {
@@ -911,6 +945,8 @@ void BundleAdjuster::Run() {
                              shot.GetRigInstance()->GetValueData().data(),
                              shot.GetRigCamera()->GetValueData().data());
   }
+  auto t18 = std::chrono::high_resolution_clock::now();
+  std::cout << "18: " << std::chrono::duration_cast<std::chrono::microseconds>(t18 - t17).count() << "\n";
 
   // Add absolute up vector errors
   ceres::LossFunction *up_vector_loss = nullptr;
@@ -929,6 +965,8 @@ void BundleAdjuster::Run() {
                                shot.GetRigCamera()->GetValueData().data());
     }
   }
+  auto t19 = std::chrono::high_resolution_clock::now();
+  std::cout << "19: " << std::chrono::duration_cast<std::chrono::microseconds>(t19 - t18).count() << "\n";
 
   // Add absolute pan (compass) errors
   ceres::LossFunction *pan_loss = nullptr;
@@ -946,6 +984,8 @@ void BundleAdjuster::Run() {
                                shot.GetRigCamera()->GetValueData().data());
     }
   }
+  auto t20 = std::chrono::high_resolution_clock::now();
+  std::cout << "20: " << std::chrono::duration_cast<std::chrono::microseconds>(t20 - t19).count() << "\n";
 
   // Add absolute tilt errors
   ceres::LossFunction *tilt_loss = nullptr;
@@ -963,6 +1003,8 @@ void BundleAdjuster::Run() {
                                shot.GetRigCamera()->GetValueData().data());
     }
   }
+  auto t21 = std::chrono::high_resolution_clock::now();
+  std::cout << "21: " << std::chrono::duration_cast<std::chrono::microseconds>(t21 - t20).count() << "\n";
 
   // Add absolute roll errors
   ceres::LossFunction *roll_loss = nullptr;
@@ -980,6 +1022,8 @@ void BundleAdjuster::Run() {
                                shot.GetRigCamera()->GetValueData().data());
     }
   }
+  auto t22 = std::chrono::high_resolution_clock::now();
+  std::cout << "22: " << std::chrono::duration_cast<std::chrono::microseconds>(t22 - t21).count() << "\n";
 
   // Add linear motion priors
   ceres::LossFunction *linear_motion_prior_loss_ = nullptr;
@@ -1041,6 +1085,8 @@ void BundleAdjuster::Run() {
     problem.AddResidualBlock(cost_function, linear_motion_prior_loss_,
                              parameter_blocks);
   }
+  auto t23 = std::chrono::high_resolution_clock::now();
+  std::cout << "23: " << std::chrono::duration_cast<std::chrono::microseconds>(t23 - t22).count() << "\n";
 
   // Gauge fix
   if (gauge_fix_shots_.HasValue()) {
@@ -1059,6 +1105,8 @@ void BundleAdjuster::Run() {
                              instance1->GetValueData().data(),
                              instance2->GetValueData().data());
   }
+  auto t24 = std::chrono::high_resolution_clock::now();
+  std::cout << "24: " << std::chrono::duration_cast<std::chrono::microseconds>(t24 - t23).count() << "\n";
 
   // Solve
   ceres::Solver::Options options;
@@ -1067,10 +1115,14 @@ void BundleAdjuster::Run() {
     throw std::runtime_error("Linear solver type " + linear_solver_type_ +
                              " doesn't exist.");
   }
+  auto t241 = std::chrono::high_resolution_clock::now();
+  std::cout << "24.1: " << std::chrono::duration_cast<std::chrono::microseconds>(t241 - t24).count() << "\n";
   options.num_threads = num_threads_;
   options.max_num_iterations = max_num_iterations_;
 
   ceres::Solve(options, &problem, &last_run_summary_);
+  auto t242 = std::chrono::high_resolution_clock::now();
+  std::cout << "24.2: " << std::chrono::duration_cast<std::chrono::microseconds>(t242 - t21).count() << "\n";
 
   if (compute_covariances_) {
     ComputeCovariances(&problem);
@@ -1078,6 +1130,9 @@ void BundleAdjuster::Run() {
   if (compute_reprojection_errors_) {
     ComputeReprojectionErrors();
   }
+  auto t25 = std::chrono::high_resolution_clock::now();
+  std::cout << "24.3: " << std::chrono::duration_cast<std::chrono::microseconds>(t25 - t242).count() << "\n";
+  std::cout << "25: " << std::chrono::duration_cast<std::chrono::microseconds>(t25 - t24).count() << "\n";
 }
 
 void BundleAdjuster::ComputeCovariances(ceres::Problem *problem) {

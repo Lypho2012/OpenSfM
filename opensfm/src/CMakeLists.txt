@@ -87,6 +87,8 @@ add_subdirectory(third_party/vlfeat)
 include_directories(third_party/vlfeat)
 
 ####### Bsi Functions #######
+#cmake_path(GET ${opensfm_SOURCE_DIR} PARENT_PATH OpenSfM_DIR)
+#include_directories("${OpenSfM_DIR}/bsiCPP")
 pybind11_add_module(pybsi bsi_functions.cpp)
 target_link_libraries(pybsi PRIVATE pybind11)
 target_include_directories(pybsi PRIVATE ${GLOG_INCLUDE_DIR})

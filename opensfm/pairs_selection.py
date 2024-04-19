@@ -83,6 +83,7 @@ def find_best_altitude(
     """
     directions_base = np.array([p for p in directions.values()])
     origin_base = np.array([p for p in origin.values()])
+    breakpoint()
 
     samples_x, samples_y = [], []
     for current_z in range(1, MAXIMUM_Z, SAMPLE_Z):

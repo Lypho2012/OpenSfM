@@ -596,6 +596,7 @@ py::dict BAHelpers::Bundle(
         rig_camera_priors,
     const AlignedVector<map::GroundControlPoint>& gcp, const py::dict& config) {
   py::dict report;
+  auto t = std::chrono::high_resolution_clock::now();
 
   auto ba = bundle::BundleAdjuster();
   const bool fix_cameras = !config["optimize_camera_parameters"].cast<bool>();
@@ -690,6 +691,8 @@ py::dict BAHelpers::Bundle(
                                      gps_scale_group);
     }
   }
+  auto t3 = std::chrono::high_resolution_clock::now();
+  std::cout << "First half (a): " << std::chrono::duration_cast<std::chrono::microseconds>(t3 - t).count() << "\n";
 
   size_t added_reprojections = 0;
   for (const auto& shot_pair : map.GetShots()) {
@@ -709,6 +712,8 @@ py::dict BAHelpers::Bundle(
       ++added_reprojections;
     }
   }
+  auto t4 = std::chrono::high_resolution_clock::now();
+  std::cout << "First half (b): " << std::chrono::duration_cast<std::chrono::microseconds>(t4 - t3).count() << "\n";
 
   if (config["bundle_use_gcp"].cast<bool>() && !gcp.empty()) {
     AddGCPToBundle(ba, map, gcp, config);
@@ -740,11 +745,16 @@ py::dict BAHelpers::Bundle(
   ba.SetMaxNumIterations(config["bundle_max_iterations"].cast<int>());
   ba.SetLinearSolverType("SPARSE_SCHUR");
   const auto timer_setup = std::chrono::high_resolution_clock::now();
+  auto t5 = std::chrono::high_resolution_clock::now();
+  std::cout << "First half (c): " << std::chrono::duration_cast<std::chrono::microseconds>(t5 - t4).count() << "\n";
 
   {
     py::gil_scoped_release release;
     ba.Run();
   }
+  auto t1 = std::chrono::high_resolution_clock::now();
+  std::cout << "First half (d): " << std::chrono::duration_cast<std::chrono::microseconds>(t1 - t5).count() << "\n";
+  std::cout << "First half: " << std::chrono::duration_cast<std::chrono::microseconds>(t1 - t).count() << "\n";
 
   const auto timer_run = std::chrono::high_resolution_clock::now();
 
@@ -770,6 +780,8 @@ py::dict BAHelpers::Bundle(
   report["num_images"] = map.GetShots().size();
   report["num_points"] = map.GetLandmarks().size();
   report["num_reprojections"] = added_reprojections;
+  auto t2 = std::chrono::high_resolution_clock::now();
+  std::cout << "Second half: " << std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() << "\n";
   return report;
 }
 

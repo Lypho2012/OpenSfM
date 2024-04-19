@@ -1396,7 +1396,7 @@ def grow_reconstruction(
 
     camera_priors = data.load_camera_models()
     rig_camera_priors = data.load_rig_cameras()
-
+    
     paint_reconstruction(data, tracks_manager, reconstruction)
     align_reconstruction(reconstruction, gcp, config)
 
@@ -1407,6 +1407,7 @@ def grow_reconstruction(
     should_bundle = ShouldBundle(data, reconstruction)
     should_retriangulate = ShouldRetriangulate(data, reconstruction)
     while True:
+        logger.info("start while loop")
         if config["save_partial_reconstructions"]:
             paint_reconstruction(data, tracks_manager, reconstruction)
             data.save_reconstruction(
@@ -1462,6 +1463,7 @@ def grow_reconstruction(
             if should_retriangulate.should():
                 logger.info("Re-triangulating")
                 align_reconstruction(reconstruction, gcp, config)
+                #breakpoint()
                 b1rep = bundle(
                     reconstruction, camera_priors, rig_camera_priors, None, config
                 )
@@ -1477,6 +1479,7 @@ def grow_reconstruction(
                 should_bundle.done()
             elif should_bundle.should():
                 align_reconstruction(reconstruction, gcp, config)
+                #breakpoint()
                 brep = bundle(
                     reconstruction, camera_priors, rig_camera_priors, None, config
                 )
@@ -1501,6 +1504,8 @@ def grow_reconstruction(
         else:
             logger.info("Some images can not be added")
             break
+        logger.info("stop while loop")
+        #breakpoint()
 
     logger.info("-------------------------------------------------------")
 
@@ -1603,17 +1608,21 @@ def incremental_reconstruction(
     chrono.lap("compute_image_pairs")
     report["num_candidate_image_pairs"] = len(pairs)
     report["reconstructions"] = []
+    logger.info("start reconstruction")
     for im1, im2 in pairs:
         if im1 in remaining_images and im2 in remaining_images:
             rec_report = {}
             report["reconstructions"].append(rec_report)
             _, p1, p2 = common_tracks[im1, im2]
+            logger.info("start bootstrap_reconstruction")
             reconstruction, rec_report["bootstrap"] = bootstrap_reconstruction(
                 data, tracks_manager, im1, im2, p1, p2
             )
-
+            logger.info("stop bootstrap_reconstruction")
+            
             if reconstruction:
                 remaining_images -= set(reconstruction.shots)
+                logger.info("start grow_reconstruction")
                 reconstruction, rec_report["grow"] = grow_reconstruction(
                     data,
                     tracks_manager,
@@ -1623,6 +1632,9 @@ def incremental_reconstruction(
                 )
                 reconstructions.append(reconstruction)
                 reconstructions = sorted(reconstructions, key=lambda x: -len(x.shots))
+                logger.info("stop grow_reconstruction")
+            #breakpoint()
+    logger.info("stop reconstruction")
 
     for k, r in enumerate(reconstructions):
         logger.info(
