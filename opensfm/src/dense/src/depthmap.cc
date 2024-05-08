@@ -4,6 +4,10 @@
 #include <opencv2/opencv.hpp>
 #include <random>
 
+#include </home/czhang/OpenSfM/bsiCPP/bsi/BsiAttribute.hpp> // TODO: change to relative path
+#include </home/czhang/OpenSfM/bsiCPP/bsi/BsiSigned.hpp>
+#include </home/czhang/OpenSfM/bsiCPP/bsi/BsiUnsigned.hpp>
+
 namespace dense {
 
 static const double z_epsilon = 1e-8;
@@ -211,8 +215,28 @@ void DepthmapEstimator::ComputePatchMatch(DepthmapEstimatorResult *result) {
   PostProcess(result);
 }
 
+void precomputeH(DepthmapEstimatorResult *result) {
+  BsiSigned<uint64_t> bsi;
+  std::vector<BsiAttribute<uint64_t>*> Ks_bsi; // 9 BSI
+  for (int i=0; i<3; i++) {
+    for (int j=0; j<3; j++) {
+      std::vector<int> vec;
+      for (int k=0; k < Ks_.size(); k++) {
+        vec.push_back(Ks_[k].at<double>(i, j));
+      }
+      Ks_bsi.push_back(bsi.buildBsiAttributeFromVectorSigned(vec,0.5));
+    }
+  }
+  std::vector<BsiAttribute<uint64_t>*> Qs_bsi; // 9 BSI
+  std::vector<BsiAttribute<uint64_t>*> as_bsi; // 3 BSI
+  std::vector<BsiAttribute<uint64_t>*> plane_bsi; // 3 BSI
+  std::vector<BsiAttribute<uint64_t>*> Kinvs_bsi; // 9 BSI
+  BsiAttribute<uint64_t> *bsi_a = bsi.buildBsiAttributeFromVectorSigned(listToVec(a),0.5);
+}
+
 void DepthmapEstimator::ComputePatchMatchSample(
     DepthmapEstimatorResult *result) {
+  precomputeH(result);
   //auto t = std::chrono::high_resolution_clock::now();
   //std::cout << "start ComputePatchMatchSample \n";
   AssignMatrices(result);
@@ -230,7 +254,7 @@ void DepthmapEstimator::ComputePatchMatchSample(
   //std::cout << ((patch_size_ - 1) / 2) << " " << result->depth.rows << " " << result->depth.cols << "\n";
 
   for (int i = 0; i < patchmatch_iterations_; ++i) {
-    std::cout << i << "\n";
+    //std::cout << i << "\n";
     //auto t31 = std::chrono::high_resolution_clock::now();
     PatchMatchForwardPass(result, true);
     //auto t32 = std::chrono::high_resolution_clock::now();
@@ -309,7 +333,6 @@ void DepthmapEstimator::PatchMatchForwardPass(DepthmapEstimatorResult *result,
                                               bool sample) {
   int adjacent[2][2] = {{-1, 0}, {0, -1}};
   int hpz = (patch_size_ - 1) / 2;
-  //std::cout << hpz << " " << result->depth.rows << " " << result->depth.cols << "\n";
   for (int i = hpz; i < result->depth.rows - hpz; ++i) {
     for (int j = hpz; j < result->depth.cols - hpz; ++j) {
       PatchMatchUpdatePixel(result, i, j, adjacent, sample);
@@ -321,6 +344,7 @@ void DepthmapEstimator::PatchMatchBackwardPass(DepthmapEstimatorResult *result,
                                                bool sample) {
   int adjacent[2][2] = {{0, 1}, {1, 0}};
   int hpz = (patch_size_ - 1) / 2;
+  std::cout<<"sample: "<<sample<<"\n";
   for (int i = result->depth.rows - hpz - 1; i >= hpz; --i) {
     for (int j = result->depth.cols - hpz - 1; j >= hpz; --j) {
       PatchMatchUpdatePixel(result, i, j, adjacent, sample);

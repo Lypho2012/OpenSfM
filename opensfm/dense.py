@@ -115,7 +115,6 @@ def compute_depthmap(arguments):
     de.set_patchmatch_iterations(data.config["depthmap_patchmatch_iterations"])
     de.set_patch_size(data.config["depthmap_patch_size"])
     de.set_min_patch_sd(data.config["depthmap_min_patch_sd"])
-    logger.info("debug")
     add_views_to_depth_estimator(data, neighbors, de)
     logger.info("add_views_to_depth_estimator")
 
@@ -304,7 +303,6 @@ def merge_depthmaps_from_provider(
 def add_views_to_depth_estimator(data: UndistortedDataSet, neighbors, de):
     """Add neighboring views to the DepthmapEstimator."""
     num_neighbors = data.config["depthmap_num_matching_views"]
-    count = 0
     for shot in neighbors[: num_neighbors + 1]:
         assert shot.camera.projection_type == "perspective"
         color_image = data.load_undistorted_image(shot.id)
@@ -319,9 +317,6 @@ def add_views_to_depth_estimator(data: UndistortedDataSet, neighbors, de):
         R = shot.pose.get_rotation_matrix()
         t = shot.pose.translation
         de.add_view(K, R, t, image, mask)
-        logger.info("pass iter "+str(count))
-        #breakpoint()
-        count += 1
 
 
 def add_views_to_depth_cleaner(data: UndistortedDataSet, neighbors, dc):
