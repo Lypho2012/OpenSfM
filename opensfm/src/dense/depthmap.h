@@ -93,13 +93,13 @@ class DepthmapEstimator {
                                           int other);
   float ComputePlaneImageScore(int i, int j, const cv::Vec3f &plane, int other);
   float BilateralWeight(float dcolor, float dx, float dy);
-  void PatchMatchForwardPassBsi(DepthmapEstimatorResult *result, bool sample);
+  /*void PatchMatchForwardPassBsi(DepthmapEstimatorResult *result, bool sample);
   void PatchMatchBackwardPassBsi(DepthmapEstimatorResult *result, bool sample);
   void PatchMatchUpdatePixelBsi(DepthmapEstimatorResult *result, int i, int j,
                              int adjacent[2][2], bool sample);
   void CheckPlaneImageCandidateBsi(DepthmapEstimatorResult *result, int i, int j,
                                 const cv::Vec3f &plane, int nghbr);
-  float ComputePlaneImageScoreBsi(int i, int j, const cv::Vec3f &plane, int other);
+  float ComputePlaneImageScoreBsi(int i, int j, const cv::Vec3f &plane, int other);*/
   void PostProcess(DepthmapEstimatorResult *result);
 
  private:
@@ -121,7 +121,17 @@ class DepthmapEstimator {
   std::normal_distribution<float> unit_normal_;
   std::vector<float> patch_variance_buffer_;
   std::vector<cv::Matx33f> H_;
+  std::vector<long> i_;
+  std::vector<long> j_;
+  std::vector<float> u_;
+  std::vector<float> v_;
+  std::vector<float> w_;
   std::vector<BsiAttribute<uint64_t>*> H_bsi;
+  BsiAttribute<uint64_t>* i_bsi;
+  BsiAttribute<uint64_t>* j_bsi;
+  BsiAttribute<uint64_t>* u_bsi;
+  BsiAttribute<uint64_t>* v_bsi;
+  BsiAttribute<uint64_t>* w_bsi;
   BsiAttribute<uint64_t>* x2_bsi;
   BsiAttribute<uint64_t>* y2_bsi;
 };

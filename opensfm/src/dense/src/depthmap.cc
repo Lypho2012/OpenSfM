@@ -215,7 +215,7 @@ void DepthmapEstimator::ComputePatchMatch(DepthmapEstimatorResult *result) {
   PostProcess(result);
 }
 
-void DepthmapEstimator::precomputeH(DepthmapEstimatorResult *result) {
+/*void DepthmapEstimator::precomputeH(DepthmapEstimatorResult *result) {
   long PRECISION = 1000;
   BsiSigned<uint64_t> bsi;
   std::vector<BsiAttribute<uint64_t>*> Ks_bsi; // 9 BSI
@@ -232,7 +232,7 @@ void DepthmapEstimator::precomputeH(DepthmapEstimatorResult *result) {
   std::vector<BsiAttribute<uint64_t>*> as_bsi; // 3 BSI
   std::vector<BsiAttribute<uint64_t>*> plane_bsi; // 3 BSI
   std::vector<BsiAttribute<uint64_t>*> Kinvs_bsi; // 9 BSI
-}
+}*/
 
 void DepthmapEstimator::ComputePatchMatchSample(
     DepthmapEstimatorResult *result) {
@@ -277,6 +277,14 @@ void DepthmapEstimator::ComputePatchMatchSample(
       std::cout <<"\n";
       H_bsi.emplace_back(bsi.buildBsiAttributeFromVectorSigned(vec,0.5));
     }
+  }
+  i_bsi = bsi.buildBsiAttributeFromVectorSigned(i_,0.5);
+  j_bsi = bsi.buildBsiAttributeFromVectorSigned(j_,0.5);
+  u_bsi = H_bsi[0]->multiplyBSI(j_bsi)->SUM(H_bsi[1]->multiplyBSI(i_bsi)->SUM(H_bsi[2]));
+  v_bsi = H_bsi[3]->multiplyBSI(j_bsi)->SUM(H_bsi[4]->multiplyBSI(i_bsi)->SUM(H_bsi[5]));
+  w_bsi = H_bsi[6]->multiplyBSI(j_bsi)->SUM(H_bsi[7]->multiplyBSI(i_bsi)->SUM(H_bsi[8]));
+  for (int i=0; i<H_.size(); i++) {
+    std::cout << "u: " << u_bsi->getValue(i) << " " << u_[i] << "v: " << v_bsi->getValue(i) << " " << v_[i] << "w: " << w_bsi->getValue(i) << " " << w_[i] << "\n";
   }
 
   /*for (int i = 0; i < patchmatch_iterations_; ++i) {
@@ -536,6 +544,11 @@ float DepthmapEstimator::ComputePlaneImageScore(int i, int j,
 
   float Hx0 = u / w;
   float Hy0 = v / w;
+  u_.push_back(u);
+  v_.push_back(v);
+  w_.push_back(w);
+  i_.push_back(i);
+  j_.push_back(j);
 
   float im1_center = images_[0].at<unsigned char>(i, j);
 
@@ -562,7 +575,7 @@ float DepthmapEstimator::BilateralWeight(float dcolor, float dx, float dy) {
              (dx * dx + dy * dy) * dx_factor);
 }
 
-void DepthmapEstimator::PatchMatchForwardPassBsi(DepthmapEstimatorResult *result,
+/*void DepthmapEstimator::PatchMatchForwardPassBsi(DepthmapEstimatorResult *result,
                                               bool sample) {
   int adjacent[2][2] = {{-1, 0}, {0, -1}};
   int hpz = (patch_size_ - 1) / 2;
@@ -577,7 +590,6 @@ void DepthmapEstimator::PatchMatchBackwardPassBsi(DepthmapEstimatorResult *resul
                                                bool sample) {
   int adjacent[2][2] = {{0, 1}, {1, 0}};
   int hpz = (patch_size_ - 1) / 2;
-  std::cout<<"sample: "<<sample<<"\n";
   for (int i = result->depth.rows - hpz - 1; i >= hpz; --i) {
     for (int j = result->depth.cols - hpz - 1; j >= hpz; --j) {
       PatchMatchUpdatePixelBsi(result, i, j, adjacent, sample);
@@ -703,7 +715,7 @@ float DepthmapEstimator::ComputePlaneImageScoreBsi(int i, int j,
     }
   }
   return ncc.Get();
-}
+}*/
 
 void DepthmapEstimator::PostProcess(DepthmapEstimatorResult *result) {
   cv::Mat depth_filtered;
