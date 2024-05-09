@@ -215,14 +215,15 @@ void DepthmapEstimator::ComputePatchMatch(DepthmapEstimatorResult *result) {
   PostProcess(result);
 }
 
-void precomputeH(DepthmapEstimatorResult *result) {
+void DepthmapEstimator::precomputeH(DepthmapEstimatorResult *result) {
+  long PRECISION = 1000;
   BsiSigned<uint64_t> bsi;
   std::vector<BsiAttribute<uint64_t>*> Ks_bsi; // 9 BSI
   for (int i=0; i<3; i++) {
     for (int j=0; j<3; j++) {
-      std::vector<int> vec;
+      std::vector<long> vec;
       for (int k=0; k < Ks_.size(); k++) {
-        vec.push_back(Ks_[k].at<double>(i, j));
+        vec.push_back(static_cast<long>(Ks_[k](i, j))*PRECISION);
       }
       Ks_bsi.push_back(bsi.buildBsiAttributeFromVectorSigned(vec,0.5));
     }
@@ -231,12 +232,12 @@ void precomputeH(DepthmapEstimatorResult *result) {
   std::vector<BsiAttribute<uint64_t>*> as_bsi; // 3 BSI
   std::vector<BsiAttribute<uint64_t>*> plane_bsi; // 3 BSI
   std::vector<BsiAttribute<uint64_t>*> Kinvs_bsi; // 9 BSI
-  BsiAttribute<uint64_t> *bsi_a = bsi.buildBsiAttributeFromVectorSigned(listToVec(a),0.5);
 }
 
 void DepthmapEstimator::ComputePatchMatchSample(
     DepthmapEstimatorResult *result) {
-  precomputeH(result);
+  //precomputeH(result);
+
   //auto t = std::chrono::high_resolution_clock::now();
   //std::cout << "start ComputePatchMatchSample \n";
   AssignMatrices(result);
@@ -265,6 +266,31 @@ void DepthmapEstimator::ComputePatchMatchSample(
     //duration = std::chrono::duration_cast<std::chrono::microseconds>(t33 - t32);
     //std::cout << "PatchMatchBackwardPass: " << duration.count() << "\n";
   }
+  BsiSigned<uint64_t> bsi;
+  for (int i=0; i<3; i++) {
+    for (int j=0; j<3; j++) {
+      std::vector<long> vec;
+      for (int k=0; k < H_.size(); k++) {
+        vec.push_back(static_cast<long>(H_[k](i, j)));
+        std::cout << H_[k](i, j) << " ";
+      }
+      std::cout <<"\n";
+      H_bsi.emplace_back(bsi.buildBsiAttributeFromVectorSigned(vec,0.5));
+    }
+  }
+
+  /*for (int i = 0; i < patchmatch_iterations_; ++i) {
+    //std::cout << i << "\n";
+    //auto t31 = std::chrono::high_resolution_clock::now();
+    PatchMatchForwardPassBsi(result, true);
+    //auto t32 = std::chrono::high_resolution_clock::now();
+    //duration = std::chrono::duration_cast<std::chrono::microseconds>(t32 - t31);
+    //std::cout << "PatchMatchForwardPass: " << duration.count() << "\n";
+    PatchMatchBackwardPassBsi(result, true);
+    //auto t33 = std::chrono::high_resolution_clock::now();
+    //duration = std::chrono::duration_cast<std::chrono::microseconds>(t33 - t32);
+    //std::cout << "PatchMatchBackwardPass: " << duration.count() << "\n";
+  }*/
   //auto t4 = std::chrono::high_resolution_clock::now();
   //duration = std::chrono::duration_cast<std::chrono::microseconds>(t4 - t3);
   //std::cout << "patchmatch_iterations_: " << duration.count() << "\n";
@@ -344,7 +370,6 @@ void DepthmapEstimator::PatchMatchBackwardPass(DepthmapEstimatorResult *result,
                                                bool sample) {
   int adjacent[2][2] = {{0, 1}, {1, 0}};
   int hpz = (patch_size_ - 1) / 2;
-  std::cout<<"sample: "<<sample<<"\n";
   for (int i = result->depth.rows - hpz - 1; i >= hpz; --i) {
     for (int j = result->depth.cols - hpz - 1; j >= hpz; --j) {
       PatchMatchUpdatePixel(result, i, j, adjacent, sample);
@@ -493,6 +518,7 @@ float DepthmapEstimator::ComputePlaneImageScore(int i, int j,
                                                 int other) {
   cv::Matx33f H = PlaneInducedHomographyBaked(Kinvs_[0], Qs_[other], as_[other],
                                               Ks_[other], plane);
+  H_.emplace_back(H);
   int hpz = (patch_size_ - 1) / 2;
 
   float u = H(0, 0) * j + H(0, 1) * i + H(0, 2);
@@ -534,6 +560,149 @@ float DepthmapEstimator::BilateralWeight(float dcolor, float dx, float dy) {
   const float dx_factor = 1.0f / (2 * dx_sigma * dx_sigma);
   return exp(-dcolor * dcolor * dcolor_factor -
              (dx * dx + dy * dy) * dx_factor);
+}
+
+void DepthmapEstimator::PatchMatchForwardPassBsi(DepthmapEstimatorResult *result,
+                                              bool sample) {
+  int adjacent[2][2] = {{-1, 0}, {0, -1}};
+  int hpz = (patch_size_ - 1) / 2;
+  for (int i = hpz; i < result->depth.rows - hpz; ++i) {
+    for (int j = hpz; j < result->depth.cols - hpz; ++j) {
+      PatchMatchUpdatePixelBsi(result, i, j, adjacent, sample);
+    }
+  }
+}
+
+void DepthmapEstimator::PatchMatchBackwardPassBsi(DepthmapEstimatorResult *result,
+                                               bool sample) {
+  int adjacent[2][2] = {{0, 1}, {1, 0}};
+  int hpz = (patch_size_ - 1) / 2;
+  std::cout<<"sample: "<<sample<<"\n";
+  for (int i = result->depth.rows - hpz - 1; i >= hpz; --i) {
+    for (int j = result->depth.cols - hpz - 1; j >= hpz; --j) {
+      PatchMatchUpdatePixelBsi(result, i, j, adjacent, sample);
+    }
+  }
+}
+
+void DepthmapEstimator::PatchMatchUpdatePixelBsi(DepthmapEstimatorResult *result,
+                                              int i, int j, int adjacent[2][2],
+                                              bool sample) {
+  // Ignore pixels with depth == 0.
+  if (result->depth.at<float>(i, j) == 0.0f) {
+    return;
+  }
+
+  // Check neighbors and their planes for adjacent pixels.
+  for (int k = 0; k < 2; ++k) {
+    int i_adjacent = i + adjacent[k][0];
+    int j_adjacent = j + adjacent[k][1];
+
+    // Do not propagate ignored adjacent pixels.
+    if (result->depth.at<float>(i_adjacent, j_adjacent) == 0.0f) {
+      continue;
+    }
+
+    cv::Vec3f plane = result->plane.at<cv::Vec3f>(i_adjacent, j_adjacent);
+
+    if (sample) {
+      int nghbr = result->nghbr.at<int>(i_adjacent, j_adjacent);
+      CheckPlaneImageCandidate(result, i, j, plane, nghbr);
+    } else {
+      CheckPlaneCandidate(result, i, j, plane);
+    }
+  }
+
+  // Check random planes for current neighbor.
+  float depth_range = 0.02;
+  float normal_range = 0.5;
+  int current_nghbr = result->nghbr.at<int>(i, j);
+  for (int k = 0; k < 6; ++k) {
+    float current_depth = result->depth.at<float>(i, j);
+    float depth = current_depth * exp(depth_range * unit_normal_(rng_));
+
+    cv::Vec3f current_plane = result->plane.at<cv::Vec3f>(i, j);
+    if (current_plane(2) == 0.0) {
+      continue;
+    }
+    cv::Vec3f normal(-current_plane(0) / current_plane(2) +
+                         normal_range * unit_normal_(rng_),
+                     -current_plane(1) / current_plane(2) +
+                         normal_range * unit_normal_(rng_),
+                     -1.0f);
+
+    cv::Vec3f plane = PlaneFromDepthAndNormal(j, i, Ks_[0], depth, normal);
+    if (sample) {
+      CheckPlaneImageCandidateBsi(result, i, j, plane, current_nghbr);
+    } else {
+      CheckPlaneCandidate(result, i, j, plane);
+    }
+
+    depth_range *= 0.3;
+    normal_range *= 0.8;
+  }
+
+  if (!sample || images_.size() <= 2) {
+    return;
+  }
+
+  // Check random other neighbor for current plane.
+  int other_nghbr = uni_(rng_);
+  while (other_nghbr == current_nghbr) {
+    other_nghbr = uni_(rng_);
+  }
+
+  cv::Vec3f plane = result->plane.at<cv::Vec3f>(i, j);
+  CheckPlaneImageCandidate(result, i, j, plane, other_nghbr);
+}
+
+void DepthmapEstimator::CheckPlaneImageCandidateBsi(
+    DepthmapEstimatorResult *result, int i, int j, const cv::Vec3f &plane,
+    int nghbr) {
+  float score = ComputePlaneImageScoreBsi(i, j, plane, nghbr);
+  if (score > result->score.at<float>(i, j)) {
+    float depth = DepthOfPlaneBackprojection(j, i, Ks_[0], plane);
+    AssignPixel(result, i, j, depth, plane, score, nghbr);
+  }
+}
+
+float DepthmapEstimator::ComputePlaneImageScoreBsi(int i, int j,
+                                                const cv::Vec3f &plane,
+                                                int other) {
+  int hpz = (patch_size_ - 1) / 2;
+  cv::Matx33f H = PlaneInducedHomographyBaked(Kinvs_[0], Qs_[other], as_[other],
+                                              Ks_[other], plane);
+
+  float u = H(0, 0) * j + H(0, 1) * i + H(0, 2);
+  float v = H(1, 0) * j + H(1, 1) * i + H(1, 2);
+  float w = H(2, 0) * j + H(2, 1) * i + H(2, 2);
+
+  if (w == 0.0) {
+    return -1.0f;
+  }
+
+  float dfdx_x = (H(0, 0) * w - H(2, 0) * u) / (w * w);
+  float dfdx_y = (H(1, 0) * w - H(2, 0) * v) / (w * w);
+  float dfdy_x = (H(0, 1) * w - H(2, 1) * u) / (w * w);
+  float dfdy_y = (H(1, 1) * w - H(2, 1) * v) / (w * w);
+
+  float Hx0 = u / w;
+  float Hy0 = v / w;
+
+  float im1_center = images_[0].at<unsigned char>(i, j);
+
+  NCCEstimator ncc;
+  for (int dy = -hpz; dy <= hpz; ++dy) {
+    for (int dx = -hpz; dx <= hpz; ++dx) {
+      float im1 = images_[0].at<unsigned char>(i + dy, j + dx);
+      float x2 = Hx0 + dfdx_x * dx + dfdy_x * dy;
+      float y2 = Hy0 + dfdx_y * dx + dfdy_y * dy;
+      float im2 = LinearInterpolation<unsigned char>(images_[other], y2, x2);
+      float weight = BilateralWeight(im1 - im1_center, dx, dy);
+      ncc.Push(im1, im2, weight);
+    }
+  }
+  return ncc.Get();
 }
 
 void DepthmapEstimator::PostProcess(DepthmapEstimatorResult *result) {

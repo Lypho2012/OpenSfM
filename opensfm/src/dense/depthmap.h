@@ -3,6 +3,10 @@
 #include <opencv2/opencv.hpp>
 #include <random>
 
+#include </home/czhang/OpenSfM/bsiCPP/bsi/BsiAttribute.hpp> // TODO: change to relative path
+#include </home/czhang/OpenSfM/bsiCPP/bsi/BsiSigned.hpp>
+#include </home/czhang/OpenSfM/bsiCPP/bsi/BsiUnsigned.hpp>
+
 namespace dense {
 
 float Variance(float *x, int n);
@@ -67,6 +71,7 @@ class DepthmapEstimator {
   void ComputeBruteForce(DepthmapEstimatorResult *result);
   void ComputePatchMatch(DepthmapEstimatorResult *result);
   void ComputePatchMatchSample(DepthmapEstimatorResult *result);
+  void precomputeH(DepthmapEstimatorResult *result);
   void AssignMatrices(DepthmapEstimatorResult *result);
   void RandomInitialization(DepthmapEstimatorResult *result, bool sample);
   void ComputeIgnoreMask(DepthmapEstimatorResult *result);
@@ -88,6 +93,13 @@ class DepthmapEstimator {
                                           int other);
   float ComputePlaneImageScore(int i, int j, const cv::Vec3f &plane, int other);
   float BilateralWeight(float dcolor, float dx, float dy);
+  void PatchMatchForwardPassBsi(DepthmapEstimatorResult *result, bool sample);
+  void PatchMatchBackwardPassBsi(DepthmapEstimatorResult *result, bool sample);
+  void PatchMatchUpdatePixelBsi(DepthmapEstimatorResult *result, int i, int j,
+                             int adjacent[2][2], bool sample);
+  void CheckPlaneImageCandidateBsi(DepthmapEstimatorResult *result, int i, int j,
+                                const cv::Vec3f &plane, int nghbr);
+  float ComputePlaneImageScoreBsi(int i, int j, const cv::Vec3f &plane, int other);
   void PostProcess(DepthmapEstimatorResult *result);
 
  private:
@@ -108,6 +120,10 @@ class DepthmapEstimator {
   std::uniform_int_distribution<int> uni_;
   std::normal_distribution<float> unit_normal_;
   std::vector<float> patch_variance_buffer_;
+  std::vector<cv::Matx33f> H_;
+  std::vector<BsiAttribute<uint64_t>*> H_bsi;
+  BsiAttribute<uint64_t>* x2_bsi;
+  BsiAttribute<uint64_t>* y2_bsi;
 };
 
 class DepthmapCleaner {
