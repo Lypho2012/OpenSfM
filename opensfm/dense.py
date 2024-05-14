@@ -13,6 +13,8 @@ from opensfm import types
 from opensfm.context import parallel_map
 from opensfm.dataset import UndistortedDataSet
 
+import os
+
 logger = logging.getLogger(__name__)
 
 
@@ -46,7 +48,7 @@ def compute_depthmaps(
             continue
         mind, maxd = compute_depth_range(graph, reconstruction, shot, config)
         arguments.append((data, neighbors[shot.id], mind, maxd, shot))
-    parallel_map(compute_depthmap_catched, arguments, processes)
+    parallel_map(compute_depthmap_catched, arguments, 1)
     #for arg in arguments:
     #    compute_depthmap_catched(arg)
 
@@ -111,12 +113,14 @@ def compute_depthmap(arguments):
 
     de = pydense.DepthmapEstimator()
     logger.info("initialized depthmap estimator")
+    #breakpoint()
     de.set_depth_range(min_depth, max_depth, 100)
     de.set_patchmatch_iterations(data.config["depthmap_patchmatch_iterations"])
     de.set_patch_size(data.config["depthmap_patch_size"])
     de.set_min_patch_sd(data.config["depthmap_min_patch_sd"])
     add_views_to_depth_estimator(data, neighbors, de)
     logger.info("add_views_to_depth_estimator")
+    #print(os.getpid())
 
     if method == "BRUTE_FORCE":
         depth, plane, score, nghbr = de.compute_brute_force()

@@ -33,8 +33,7 @@ def configure_c_extension():
     cmake_command = [
         "cmake",
         "../opensfm/src",
-        "-DPYTHON_EXECUTABLE=" + sys.executable,
-        #"-DCMAKE_BUILD_TYPE=Debug . -B cmake_build"
+        "-DPYTHON_EXECUTABLE=" + sys.executable
     ]
     if sys.platform == "win32":
         cmake_command += [

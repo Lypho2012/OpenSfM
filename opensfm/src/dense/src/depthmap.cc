@@ -254,51 +254,100 @@ void DepthmapEstimator::ComputePatchMatchSample(
   //std::cout << "ComputeIgnoreMask: " << duration.count() << "\n";
   //std::cout << ((patch_size_ - 1) / 2) << " " << result->depth.rows << " " << result->depth.cols << "\n";
 
+  double PRECISION = 100000;
   for (int i = 0; i < patchmatch_iterations_; ++i) {
     //std::cout << i << "\n";
     //auto t31 = std::chrono::high_resolution_clock::now();
+    std::cout << i << "\n";
     PatchMatchForwardPass(result, true);
+    std::cout << i << " " << "forward pass: " << H_.size() << "\n";
     //auto t32 = std::chrono::high_resolution_clock::now();
     //duration = std::chrono::duration_cast<std::chrono::microseconds>(t32 - t31);
     //std::cout << "PatchMatchForwardPass: " << duration.count() << "\n";
+    BsiSigned<uint64_t> bsi;
+    std::vector<BsiAttribute<uint64_t>*> H_bsi;
+    for (int h=0; h<3; h++) {
+      for (int j=0; j<3; j++) {
+        std::vector<long> vec;
+        for (int k=0; k < H_.size(); k++) {
+          vec.emplace_back(static_cast<long>(H_[k](h, j)*PRECISION));
+          
+          std::cout << vec.back() << " ";
+        }
+        std::cout <<"\n";
+        //std::cout << "vec size: " << vec.size() << "\n";
+        H_bsi.emplace_back(bsi.buildBsiAttributeFromVectorSigned(vec,0.5));
+        std::cout << "build bsi\n";
+        vec.clear();
+        std::cout << "clear vec\n";
+      }
+    }
+    std::cout << "i: ";
+    for (int k=0; k < H_.size(); k++) {
+      std::cout << i_[k] << " ";
+    }
+    std::cout << "\n";
+    std::cout << "j: ";
+    for (int k=0; k < H_.size(); k++) {
+      std::cout << j_[k] << " ";
+    }
+    std::cout << "\n";
+    std::cout << "H_ size: " << H_.size() << " " << i_.size() << " " << j_.size() << " " << H_bsi.size() << "\n";
+    BsiAttribute<uint64_t>* i_bsi = bsi.buildBsiAttributeFromVectorSigned(i_,0.5);
+    BsiAttribute<uint64_t>* j_bsi = bsi.buildBsiAttributeFromVectorSigned(j_,0.5);
+    /*BsiAttribute<uint64_t>* u_bsi = H_bsi[0]->multiplyBSI(j_bsi)->SUM(H_bsi[1]->multiplyBSI(i_bsi)->SUM(H_bsi[2]));
+    BsiAttribute<uint64_t>* v_bsi = H_bsi[3]->multiplyBSI(j_bsi)->SUM(H_bsi[4]->multiplyBSI(i_bsi)->SUM(H_bsi[5]));
+    BsiAttribute<uint64_t>* w_bsi = H_bsi[6]->multiplyBSI(j_bsi)->SUM(H_bsi[7]->multiplyBSI(i_bsi)->SUM(H_bsi[8]));*/
+    /*BsiAttribute<uint64_t>* u_bsi = H_bsi[0]->multiplyBSI(j_bsi);
+    std::cout << "u_bsi 1\n";
+    u_bsi = u_bsi->SUM(H_bsi[1]->multiplyBSI(i_bsi));
+    std::cout << "u_bsi 2\n";
+    u_bsi = u_bsi->SUM(H_bsi[2]);
+    std::cout << "u_bsi 3\n";
+    BsiAttribute<uint64_t>* v_bsi = H_bsi[3]->multiplyBSI(j_bsi);
+    std::cout << "v_bsi 1\n";
+    v_bsi = v_bsi->SUM(H_bsi[4]->multiplyBSI(i_bsi));
+    std::cout << "v_bsi 2\n";
+    v_bsi = v_bsi->SUM(H_bsi[5]);
+    std::cout << "v_bsi 3\n";
+    //std::cout << H_bsi[6]->rows << "\n";
+    BsiAttribute<uint64_t>* w_bsi = H_bsi[6]->multiplyBSI(j_bsi);
+    std::cout << "w_bsi 1\n";
+    w_bsi = w_bsi->SUM(H_bsi[7]->multiplyBSI(i_bsi));
+    std::cout << "w_bsi 2\n";
+    w_bsi = w_bsi->SUM(H_bsi[8]);
+    std::cout << "w_bsi 3\n";*/
+    
+    BsiAttribute<uint64_t>* u_bsi = H_bsi[0]->multiplyWithBsiHorizontal(j_bsi,PRECISION)->sum_Horizontal(H_bsi[1]->multiplyWithBsiHorizontal(i_bsi,PRECISION)->sum_Horizontal(H_bsi[2]));
+    BsiAttribute<uint64_t>* v_bsi = H_bsi[3]->multiplyWithBsiHorizontal(j_bsi,PRECISION)->sum_Horizontal(H_bsi[4]->multiplyWithBsiHorizontal(i_bsi,PRECISION)->sum_Horizontal(H_bsi[5]));
+    BsiAttribute<uint64_t>* w_bsi = H_bsi[6]->multiplyWithBsiHorizontal(j_bsi,PRECISION)->sum_Horizontal(H_bsi[7]->multiplyWithBsiHorizontal(i_bsi,PRECISION)->sum_Horizontal(H_bsi[8]));
+
+    std::cout << "finish calculating \n";
+    for (int i=0; i<H_.size(); i++) {
+      std::cout << "u: " << u_bsi->getValue(i)/PRECISION << " " << u_[i] << " v: " << v_bsi->getValue(i)/PRECISION << " " << v_[i] << " w: " << w_bsi->getValue(i)/PRECISION << " " << w_[i] << "\n";
+    }
+    H_.clear();
+    u_.clear();
+    v_.clear();
+    w_.clear();
+    i_.clear();
+    j_.clear();
+    H_bsi.clear();
+    std::cout << "finish clearing\n";
     PatchMatchBackwardPass(result, true);
+    H_.clear();
+    u_.clear();
+    v_.clear();
+    w_.clear();
+    i_.clear();
+    j_.clear();
+    std::cout << "finish clearing again\n";
+    //std::cout << "backward pass: " << H_.size() << "\n";
     //auto t33 = std::chrono::high_resolution_clock::now();
     //duration = std::chrono::duration_cast<std::chrono::microseconds>(t33 - t32);
     //std::cout << "PatchMatchBackwardPass: " << duration.count() << "\n";
-  }
-  BsiSigned<uint64_t> bsi;
-  for (int i=0; i<3; i++) {
-    for (int j=0; j<3; j++) {
-      std::vector<long> vec;
-      for (int k=0; k < H_.size(); k++) {
-        vec.push_back(static_cast<long>(H_[k](i, j)));
-        std::cout << H_[k](i, j) << " ";
-      }
-      std::cout <<"\n";
-      H_bsi.emplace_back(bsi.buildBsiAttributeFromVectorSigned(vec,0.5));
-    }
-  }
-  i_bsi = bsi.buildBsiAttributeFromVectorSigned(i_,0.5);
-  j_bsi = bsi.buildBsiAttributeFromVectorSigned(j_,0.5);
-  u_bsi = H_bsi[0]->multiplyBSI(j_bsi)->SUM(H_bsi[1]->multiplyBSI(i_bsi)->SUM(H_bsi[2]));
-  v_bsi = H_bsi[3]->multiplyBSI(j_bsi)->SUM(H_bsi[4]->multiplyBSI(i_bsi)->SUM(H_bsi[5]));
-  w_bsi = H_bsi[6]->multiplyBSI(j_bsi)->SUM(H_bsi[7]->multiplyBSI(i_bsi)->SUM(H_bsi[8]));
-  for (int i=0; i<H_.size(); i++) {
-    std::cout << "u: " << u_bsi->getValue(i) << " " << u_[i] << "v: " << v_bsi->getValue(i) << " " << v_[i] << "w: " << w_bsi->getValue(i) << " " << w_[i] << "\n";
   }
 
-  /*for (int i = 0; i < patchmatch_iterations_; ++i) {
-    //std::cout << i << "\n";
-    //auto t31 = std::chrono::high_resolution_clock::now();
-    PatchMatchForwardPassBsi(result, true);
-    //auto t32 = std::chrono::high_resolution_clock::now();
-    //duration = std::chrono::duration_cast<std::chrono::microseconds>(t32 - t31);
-    //std::cout << "PatchMatchForwardPass: " << duration.count() << "\n";
-    PatchMatchBackwardPassBsi(result, true);
-    //auto t33 = std::chrono::high_resolution_clock::now();
-    //duration = std::chrono::duration_cast<std::chrono::microseconds>(t33 - t32);
-    //std::cout << "PatchMatchBackwardPass: " << duration.count() << "\n";
-  }*/
   //auto t4 = std::chrono::high_resolution_clock::now();
   //duration = std::chrono::duration_cast<std::chrono::microseconds>(t4 - t3);
   //std::cout << "patchmatch_iterations_: " << duration.count() << "\n";
@@ -369,7 +418,9 @@ void DepthmapEstimator::PatchMatchForwardPass(DepthmapEstimatorResult *result,
   int hpz = (patch_size_ - 1) / 2;
   for (int i = hpz; i < result->depth.rows - hpz; ++i) {
     for (int j = hpz; j < result->depth.cols - hpz; ++j) {
+      if (H_.size() >= 1000000) return;
       PatchMatchUpdatePixel(result, i, j, adjacent, sample);
+      //std::cout << "Forward " << i << " " << j << " " << H_.size() << "\n";
     }
   }
 }
@@ -380,7 +431,9 @@ void DepthmapEstimator::PatchMatchBackwardPass(DepthmapEstimatorResult *result,
   int hpz = (patch_size_ - 1) / 2;
   for (int i = result->depth.rows - hpz - 1; i >= hpz; --i) {
     for (int j = result->depth.cols - hpz - 1; j >= hpz; --j) {
+      if (H_.size() >= 100) return;
       PatchMatchUpdatePixel(result, i, j, adjacent, sample);
+      //std::cout << "Backward " << i << " " << j << " " << H_.size() << "\n";
     }
   }
 }
@@ -524,9 +577,9 @@ float DepthmapEstimator::ComputePlaneImageScoreUnoptimized(
 float DepthmapEstimator::ComputePlaneImageScore(int i, int j,
                                                 const cv::Vec3f &plane,
                                                 int other) {
+  if (H_.size() >= 100) return 0;
   cv::Matx33f H = PlaneInducedHomographyBaked(Kinvs_[0], Qs_[other], as_[other],
                                               Ks_[other], plane);
-  H_.emplace_back(H);
   int hpz = (patch_size_ - 1) / 2;
 
   float u = H(0, 0) * j + H(0, 1) * i + H(0, 2);
@@ -544,6 +597,7 @@ float DepthmapEstimator::ComputePlaneImageScore(int i, int j,
 
   float Hx0 = u / w;
   float Hy0 = v / w;
+  H_.push_back(H);
   u_.push_back(u);
   v_.push_back(v);
   w_.push_back(w);

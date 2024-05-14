@@ -126,14 +126,12 @@ class DepthmapEstimator {
   std::vector<float> u_;
   std::vector<float> v_;
   std::vector<float> w_;
-  std::vector<BsiAttribute<uint64_t>*> H_bsi;
+  /*std::vector<BsiAttribute<uint64_t>*> H_bsi;
   BsiAttribute<uint64_t>* i_bsi;
   BsiAttribute<uint64_t>* j_bsi;
   BsiAttribute<uint64_t>* u_bsi;
   BsiAttribute<uint64_t>* v_bsi;
-  BsiAttribute<uint64_t>* w_bsi;
-  BsiAttribute<uint64_t>* x2_bsi;
-  BsiAttribute<uint64_t>* y2_bsi;
+  BsiAttribute<uint64_t>* w_bsi;*/
 };
 
 class DepthmapCleaner {
