@@ -126,6 +126,10 @@ class DepthmapEstimator {
   std::vector<float> u_;
   std::vector<float> v_;
   std::vector<float> w_;
+  std::vector<float> Hi_;
+  std::vector<float> Hj_;
+  std::vector<float> Hij_;
+  int uvw_time;
   /*std::vector<BsiAttribute<uint64_t>*> H_bsi;
   BsiAttribute<uint64_t>* i_bsi;
   BsiAttribute<uint64_t>* j_bsi;

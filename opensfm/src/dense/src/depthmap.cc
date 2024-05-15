@@ -8,6 +8,8 @@
 #include </home/czhang/OpenSfM/bsiCPP/bsi/BsiSigned.hpp>
 #include </home/czhang/OpenSfM/bsiCPP/bsi/BsiUnsigned.hpp>
 
+#include <cmath>
+
 namespace dense {
 
 static const double z_epsilon = 1e-8;
@@ -254,7 +256,7 @@ void DepthmapEstimator::ComputePatchMatchSample(
   //std::cout << "ComputeIgnoreMask: " << duration.count() << "\n";
   //std::cout << ((patch_size_ - 1) / 2) << " " << result->depth.rows << " " << result->depth.cols << "\n";
 
-  double PRECISION = 100000;
+  double PRECISION = 1000000;
   for (int i = 0; i < patchmatch_iterations_; ++i) {
     //std::cout << i << "\n";
     //auto t31 = std::chrono::high_resolution_clock::now();
@@ -272,7 +274,7 @@ void DepthmapEstimator::ComputePatchMatchSample(
         for (int k=0; k < H_.size(); k++) {
           vec.emplace_back(static_cast<long>(H_[k](h, j)*PRECISION));
           
-          std::cout << vec.back() << " ";
+          std::cout << H_[k](h, j) << " ";
         }
         std::cout <<"\n";
         //std::cout << "vec size: " << vec.size() << "\n";
@@ -318,22 +320,82 @@ void DepthmapEstimator::ComputePatchMatchSample(
     w_bsi = w_bsi->SUM(H_bsi[8]);
     std::cout << "w_bsi 3\n";*/
     
-    BsiAttribute<uint64_t>* u_bsi = H_bsi[0]->multiplyWithBsiHorizontal(j_bsi,PRECISION)->sum_Horizontal(H_bsi[1]->multiplyWithBsiHorizontal(i_bsi,PRECISION)->sum_Horizontal(H_bsi[2]));
-    BsiAttribute<uint64_t>* v_bsi = H_bsi[3]->multiplyWithBsiHorizontal(j_bsi,PRECISION)->sum_Horizontal(H_bsi[4]->multiplyWithBsiHorizontal(i_bsi,PRECISION)->sum_Horizontal(H_bsi[5]));
-    BsiAttribute<uint64_t>* w_bsi = H_bsi[6]->multiplyWithBsiHorizontal(j_bsi,PRECISION)->sum_Horizontal(H_bsi[7]->multiplyWithBsiHorizontal(i_bsi,PRECISION)->sum_Horizontal(H_bsi[8]));
+    auto t1 = std::chrono::high_resolution_clock::now();
+    /*BsiAttribute<uint64_t>* u_bsi = H_bsi[0]->multiplyWithBsiHorizontal(j_bsi)->sum_Horizontal(H_bsi[1]->multiplyWithBsiHorizontal(i_bsi)->sum_Horizontal(H_bsi[2]));
+    BsiAttribute<uint64_t>* v_bsi = H_bsi[3]->multiplyWithBsiHorizontal(j_bsi)->sum_Horizontal(H_bsi[4]->multiplyWithBsiHorizontal(i_bsi)->sum_Horizontal(H_bsi[5]));
+    BsiAttribute<uint64_t>* w_bsi = H_bsi[6]->multiplyWithBsiHorizontal(j_bsi)->sum_Horizontal(H_bsi[7]->multiplyWithBsiHorizontal(i_bsi)->sum_Horizontal(H_bsi[8]));*/
 
-    std::cout << "finish calculating \n";
-    for (int i=0; i<H_.size(); i++) {
-      std::cout << "u: " << u_bsi->getValue(i)/PRECISION << " " << u_[i] << " v: " << v_bsi->getValue(i)/PRECISION << " " << v_[i] << " w: " << w_bsi->getValue(i)/PRECISION << " " << w_[i] << "\n";
+    /*BsiAttribute<uint64_t>* u_bsi = H_bsi[0]->multiplication_Horizontal(j_bsi)->SUM(H_bsi[1]->multiplication_Horizontal(i_bsi)->SUM(H_bsi[2]));
+    BsiAttribute<uint64_t>* v_bsi = H_bsi[3]->multiplication_Horizontal(j_bsi)->SUM(H_bsi[4]->multiplication_Horizontal(i_bsi)->SUM(H_bsi[5]));
+    BsiAttribute<uint64_t>* w_bsi = H_bsi[6]->multiplication_Horizontal(j_bsi)->SUM(H_bsi[7]->multiplication_Horizontal(i_bsi)->SUM(H_bsi[8]));*/
+
+    BsiAttribute<uint64_t>* u_bsi = H_bsi[0]->multiplyWithBsiHorizontal(j_bsi)->SUM(H_bsi[1]->multiplyWithBsiHorizontal(i_bsi)->SUM(H_bsi[2]));
+    BsiAttribute<uint64_t>* v_bsi = H_bsi[3]->multiplyWithBsiHorizontal(j_bsi)->SUM(H_bsi[4]->multiplyWithBsiHorizontal(i_bsi)->SUM(H_bsi[5]));
+    BsiAttribute<uint64_t>* w_bsi = H_bsi[6]->multiplyWithBsiHorizontal(j_bsi)->SUM(H_bsi[7]->multiplyWithBsiHorizontal(i_bsi)->SUM(H_bsi[8]));
+
+    auto t2 = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1);
+    std::cout << "Calculate u,v,w: BSI: " << duration.count() << " Regular: " << uvw_time<< "\n";
+    std::cout << "U size: " << u_bsi->rows << "V size: " << v_bsi->rows << "W size: " << w_bsi->rows << "\n";
+
+    double residuals_u = 0;
+    double mean_u = 0;
+    double squares_u = 0;
+    double residuals_v = 0;
+    double mean_v = 0;
+    double squares_v = 0;
+    double residuals_w = 0;
+    double mean_w = 0;
+    double squares_w = 0;
+    for (int k=0; k<H_.size(); k++) {
+      /*residuals_u += pow(u_bsi->getValue(k)/PRECISION - u_[k],2);
+      mean_u += u_[k];
+      residuals_v += pow(v_bsi->getValue(k)/PRECISION - v_[k],2);
+      mean_v += v_[k];
+      residuals_w += pow(w_bsi->getValue(k)/PRECISION - w_[k],2);
+      mean_w += w_[k];*/
+      std::cout << "u: " << u_bsi->getValue(k)/PRECISION << " " << u_[k] << " v: " << v_bsi->getValue(k)/PRECISION << " " << v_[k] << " w: " << w_bsi->getValue(k)/PRECISION << " " << w_[k] << "\n";
     }
+    /*mean_u /= H_.size();
+    mean_v /= H_.size();
+    mean_w /= H_.size();
+    for (int k=0; k<H_.size(); k++) {
+      squares_u += pow(u_[k] - mean_u, 2);
+      squares_v += pow(v_[k] - mean_v, 2);
+      squares_w += pow(w_[k] - mean_w, 2);
+    }
+    std::cout << "MSE u: " << residuals_u/H_.size() << " MSE v: " << residuals_v/H_.size() << " MSE w: " << residuals_w/H_.size() << "\n";
+    std::cout << "R2 u: " << 1 - residuals_u/H_.size()/squares_u << " R2 v: " << 1 - residuals_v/H_.size()/squares_v << " R2 w: " << 1 - residuals_w/H_.size()/squares_w << "\n";*/
+    
+    BsiAttribute<uint64_t>* u_bsi1 = H_bsi[0]->multiplyWithBsiHorizontal(j_bsi);
+    BsiAttribute<uint64_t>* u_bsi2 = H_bsi[1]->multiplyWithBsiHorizontal(i_bsi);
+    BsiAttribute<uint64_t>* u_bsi3 = u_bsi1->SUM(u_bsi2);
+
+    std::cout << "u1 size: " << u_bsi1->rows << " u2 size: "<< u_bsi2->rows << " u3 size: "<< u_bsi3->rows << "\n";
+    for (int k=0; k<H_.size(); k++) {
+      std::cout << "u1: " << u_bsi1->getValue(k)/PRECISION << " " << Hj_[k] << " u2: " << u_bsi2->getValue(k)/PRECISION << " " << Hi_[k] << " u3: " << u_bsi3->getValue(k)/PRECISION << " " << Hij_[k] << "\n";
+    }
+    /*for (int k=0; k<H_.size(); k++) {
+      std::cout << "u1: " << u_bsi1->getValue(k)/PRECISION << " " << Hj_[k] << "\n";
+    }
+    for (int k=0; k<H_.size(); k++) {
+      std::cout << " u2: " << u_bsi2->getValue(k)/PRECISION << " " << Hi_[k] << "\n";
+    }
+    for (int k=0; k<H_.size(); k++) {
+      std::cout << " u3: " << u_bsi3->getValue(k)/PRECISION << " " << Hij_[k] << "\n";
+    }*/
     H_.clear();
     u_.clear();
     v_.clear();
     w_.clear();
     i_.clear();
     j_.clear();
+    Hij_.clear();
+    Hi_.clear();
+    Hj_.clear();
     H_bsi.clear();
     std::cout << "finish clearing\n";
+    break;
     PatchMatchBackwardPass(result, true);
     H_.clear();
     u_.clear();
@@ -341,6 +403,9 @@ void DepthmapEstimator::ComputePatchMatchSample(
     w_.clear();
     i_.clear();
     j_.clear();
+    Hij_.clear();
+    Hi_.clear();
+    Hj_.clear();
     std::cout << "finish clearing again\n";
     //std::cout << "backward pass: " << H_.size() << "\n";
     //auto t33 = std::chrono::high_resolution_clock::now();
@@ -581,10 +646,22 @@ float DepthmapEstimator::ComputePlaneImageScore(int i, int j,
   cv::Matx33f H = PlaneInducedHomographyBaked(Kinvs_[0], Qs_[other], as_[other],
                                               Ks_[other], plane);
   int hpz = (patch_size_ - 1) / 2;
-
+  auto t1 = std::chrono::high_resolution_clock::now();
   float u = H(0, 0) * j + H(0, 1) * i + H(0, 2);
   float v = H(1, 0) * j + H(1, 1) * i + H(1, 2);
   float w = H(2, 0) * j + H(2, 1) * i + H(2, 2);
+  auto t2 = std::chrono::high_resolution_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1);
+  uvw_time += duration.count();
+  H_.push_back(H);
+  u_.push_back(u);
+  v_.push_back(v);
+  w_.push_back(w);
+  i_.push_back(i);
+  j_.push_back(j);
+  Hj_.push_back(H(0, 0) * j);
+  Hi_.push_back(H(0, 1) * i);
+  Hij_.push_back(H(0, 0) * j + H(0, 1) * i);
 
   if (w == 0.0) {
     return -1.0f;
@@ -597,12 +674,6 @@ float DepthmapEstimator::ComputePlaneImageScore(int i, int j,
 
   float Hx0 = u / w;
   float Hy0 = v / w;
-  H_.push_back(H);
-  u_.push_back(u);
-  v_.push_back(v);
-  w_.push_back(w);
-  i_.push_back(i);
-  j_.push_back(j);
 
   float im1_center = images_[0].at<unsigned char>(i, j);
 
