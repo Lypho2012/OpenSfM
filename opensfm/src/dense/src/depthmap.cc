@@ -8,6 +8,9 @@
 #include </home/czhang/OpenSfM/bsiCPP/bsi/BsiSigned.hpp>
 #include </home/czhang/OpenSfM/bsiCPP/bsi/BsiUnsigned.hpp>
 
+#include <iostream>
+#include <fstream>
+
 namespace dense {
 
 static const double z_epsilon = 1e-8;
@@ -255,6 +258,7 @@ void DepthmapEstimator::ComputePatchMatchSample(
   //std::cout << ((patch_size_ - 1) / 2) << " " << result->depth.rows << " " << result->depth.cols << "\n";
 
   double PRECISION = 1000000;
+  //std::ofstream MyFile("input10M.txt");
   for (int i = 0; i < patchmatch_iterations_; ++i) {
     //auto t31 = std::chrono::high_resolution_clock::now();
     //std::cout << i << "\n";
@@ -270,9 +274,10 @@ void DepthmapEstimator::ComputePatchMatchSample(
         std::vector<long> vec;
         for (int k=0; k < H_.size(); k++) {
           vec.emplace_back(static_cast<long>(H_[k](h, j)*PRECISION));
-          
+          //MyFile << H_[k](h, j) << " ";
           //std::cout << H_[k](h, j) << " ";
         }
+        //MyFile << "\n";
         //std::cout <<"\n";
         //std::cout << "vec size: " << vec.size() << "\n";
         H_bsi.emplace_back(bsi.buildBsiAttributeFromVectorSigned(vec,0.5));
@@ -281,6 +286,15 @@ void DepthmapEstimator::ComputePatchMatchSample(
         //std::cout << "clear vec\n";
       }
     }
+    /*for (int k=0; k < H_.size(); k++) {
+      MyFile << i_[k] << " ";
+    }
+    MyFile << "\n";
+    for (int k=0; k < H_.size(); k++) {
+      MyFile << j_[k] << " ";
+    }
+    MyFile << "\n";
+    MyFile.close();*/
     /*std::cout << "i: ";
     for (int k=0; k < H_.size(); k++) {
       std::cout << i_[k] << " ";
@@ -301,10 +315,27 @@ void DepthmapEstimator::ComputePatchMatchSample(
     BsiAttribute<uint64_t>* w_bsi = H_bsi[6]->multiplyWithBsiHorizontal(j_bsi)->SUM(H_bsi[7]->multiplyWithBsiHorizontal(i_bsi)->SUM(H_bsi[8]));
 
     auto t2 = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1);
-    std::cout << "Calculate u,v,w: BSI: " << duration.count() << " Regular: " << uvw_time<< "\n";
+    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1);
+    auto x = 0;
+    auto t3 = std::chrono::high_resolution_clock::now();
+    for (int k=0; k<H_.size(); k++) {
+      double u = H_[k](0,0) * j_[k] + H_[k](0,1) * i_[k] + H_[k](0,2);
+      x += u;
+    }
+    for (int k=0; k<H_.size(); k++) {
+      double u = H_[k](1,0) * j_[k] + H_[k](1,1) * i_[k] + H_[k](1,2);
+      x += u;
+    }
+    for (int k=0; k<H_.size(); k++) {
+      double u = H_[k](2,0) * j_[k] + H_[k](2,1) * i_[k] + H_[k](2,2);
+      x += u;
+    }
+    auto t4 = std::chrono::high_resolution_clock::now();
+    std::cout << x << "\n";
+    auto duration2 = std::chrono::duration_cast<std::chrono::nanoseconds>(t4 - t3);
+    std::cout << "Calculate u,v,w: BSI: " << duration.count() << " Regular: " << duration2.count()<< "\n";
     std::cout << "U size: " << u_bsi->rows << " V size: " << v_bsi->rows << " W size: " << w_bsi->rows << "\n";
-
+    break;
     double residuals_u = 0;
     double mean_u = 0;
     double squares_u = 0;
@@ -315,18 +346,18 @@ void DepthmapEstimator::ComputePatchMatchSample(
     double mean_w = 0;
     double squares_w = 0;
     for (int k=0; k<H_.size(); k++) {
-      std::cout << k << "\n";
+      //std::cout << k << "\n";
       double residual_u = u_bsi->getValue(k)/PRECISION - u_[k];
       residuals_u += residual_u*residual_u;
-      std::cout << "u: " << residuals_u << "\n";
+      //std::cout << "u: " << residuals_u << "\n";
       mean_u += u_[k];
       double residual_v = v_bsi->getValue(k)/PRECISION - v_[k];
       residuals_v += residual_v*residual_v;
-      std::cout << "v: " << residuals_v << "\n";
+      //std::cout << "v: " << residuals_v << "\n";
       mean_v += v_[k];
       double residual_w = w_bsi->getValue(k)/PRECISION - w_[k];
       residuals_w += residual_w*residual_w;
-      std::cout << "w: " << residuals_w << "\n";
+      //std::cout << "w: " << residuals_w << "\n";
       mean_w += w_[k];
     }
     mean_u /= H_.size();
@@ -442,7 +473,7 @@ void DepthmapEstimator::PatchMatchForwardPass(DepthmapEstimatorResult *result,
   int hpz = (patch_size_ - 1) / 2;
   for (int i = hpz; i < result->depth.rows - hpz; ++i) {
     for (int j = hpz; j < result->depth.cols - hpz; ++j) {
-      if (H_.size() >= 100) return;
+      if (H_.size() >= 10000000) return;
       PatchMatchUpdatePixel(result, i, j, adjacent, sample);
       //std::cout << "Forward " << i << " " << j << " " << H_.size() << "\n";
     }
@@ -601,7 +632,7 @@ float DepthmapEstimator::ComputePlaneImageScoreUnoptimized(
 float DepthmapEstimator::ComputePlaneImageScore(int i, int j,
                                                 const cv::Vec3f &plane,
                                                 int other) {
-  if (H_.size() >= 100) return 0;
+  if (H_.size() >= 10000000) return 0;
   auto t1 = std::chrono::high_resolution_clock::now();
   cv::Matx33f H = PlaneInducedHomographyBaked(Kinvs_[0], Qs_[other], as_[other],
                                               Ks_[other], plane);

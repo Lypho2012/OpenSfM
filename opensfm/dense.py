@@ -48,7 +48,7 @@ def compute_depthmaps(
             continue
         mind, maxd = compute_depth_range(graph, reconstruction, shot, config)
         arguments.append((data, neighbors[shot.id], mind, maxd, shot))
-    parallel_map(compute_depthmap_catched, arguments, processes)
+    parallel_map(compute_depthmap_catched, arguments, 1)
     #for arg in arguments:
     #    compute_depthmap_catched(arg)
 
