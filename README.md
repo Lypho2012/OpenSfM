@@ -22,6 +22,9 @@ Checkout this [blog post with more demos](http://blog.mapillary.com/update/2014/
 [Running a reconstruction]: https://opensfm.org/docs/using.html (OpenSfM usage)
 [Documentation]: https://opensfm.org/docs/ (OpenSfM documentation)
 
+
+## Changes
+Implemented part of bundle adjust (estimating depths for 3D point cloud) using bit-sliced indexing, optimized by 100 times the original runtime
 ## License
 OpenSfM is BSD-style licensed, as found in the LICENSE file.  See also the Facebook Open Source [Terms of Use][] and [Privacy Policy][]
 
