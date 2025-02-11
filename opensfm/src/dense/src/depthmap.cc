@@ -4,9 +4,9 @@
 #include <opencv2/opencv.hpp>
 #include <random>
 
-#include </home/czhang/OpenSfM/bsiCPP/bsi/BsiAttribute.hpp> // TODO: change to relative path
-#include </home/czhang/OpenSfM/bsiCPP/bsi/BsiSigned.hpp>
-#include </home/czhang/OpenSfM/bsiCPP/bsi/BsiUnsigned.hpp>
+#include "/Users/zhang/OpenSfM/bsiCPP/bsi/BsiAttribute.hpp" // TODO: change to relative path
+#include "/Users/zhang/OpenSfM/bsiCPP/bsi/BsiSigned.hpp"
+#include "/Users/zhang/OpenSfM/bsiCPP/bsi/BsiUnsigned.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -77,6 +77,8 @@ float NCCEstimator::Get() {
   if (varx < 0.1 || vary < 0.1) {
     return -1;
   } else {
+    // covariance between intensities in the overlap of x and y / standard deviation of intensities
+    // normalized by standard deviation to prevent change in brightness from affecting score
     return (meanxy - meanx * meany) / sqrt(varx * vary);
   }
 }
@@ -257,7 +259,20 @@ void DepthmapEstimator::ComputePatchMatchSample(
   //std::cout << "ComputeIgnoreMask: " << duration.count() << "\n";
   //std::cout << ((patch_size_ - 1) / 2) << " " << result->depth.rows << " " << result->depth.cols << "\n";
 
+  // convert Kinvs_, Qs_, as_, and Ks_ to bsi
   double PRECISION = 1000000;
+  BsiSigned<uint64_t> bsi;
+  for (int h=0; h<3; h++) {
+    for (int j=0; j<3; j++) {
+      std::vector<long> vec;
+      for (int k=0; k < H_.size(); k++) {
+        vec.emplace_back(static_cast<long>(Kinvs_[k](h, j)*PRECISION));
+      }
+      Kinvs_bsi.emplace_back(bsi.buildBsiAttributeFromVectorSigned(vec,0.5));
+    }
+  }
+  
+
   //std::ofstream MyFile("input10M.txt");
   for (int i = 0; i < patchmatch_iterations_; ++i) {
     //auto t31 = std::chrono::high_resolution_clock::now();
@@ -267,7 +282,7 @@ void DepthmapEstimator::ComputePatchMatchSample(
     //auto t32 = std::chrono::high_resolution_clock::now();
     //duration = std::chrono::duration_cast<std::chrono::microseconds>(t32 - t31);
     //std::cout << "PatchMatchForwardPass: " << duration.count() << "\n";
-    BsiSigned<uint64_t> bsi;
+    
     std::vector<BsiAttribute<uint64_t>*> H_bsi;
     for (int h=0; h<3; h++) {
       for (int j=0; j<3; j++) {
@@ -426,7 +441,8 @@ void DepthmapEstimator::RandomInitialization(DepthmapEstimatorResult *result,
   int hpz = (patch_size_ - 1) / 2;
   for (int i = hpz; i < result->depth.rows - hpz; ++i) {
     for (int j = hpz; j < result->depth.cols - hpz; ++j) {
-      float depth = exp(UniformRand(log(min_depth_), log(max_depth_)));
+      // Log-uniform distribution
+      float depth = exp(UniformRand(log(min_depth_), log(max_depth_))); 
       cv::Vec3f normal(UniformRand(-1, 1), UniformRand(-1, 1), -1);
       cv::Vec3f plane = PlaneFromDepthAndNormal(j, i, Ks_[0], depth, normal);
       int nghbr;
@@ -473,7 +489,7 @@ void DepthmapEstimator::PatchMatchForwardPass(DepthmapEstimatorResult *result,
   int hpz = (patch_size_ - 1) / 2;
   for (int i = hpz; i < result->depth.rows - hpz; ++i) {
     for (int j = hpz; j < result->depth.cols - hpz; ++j) {
-      if (H_.size() >= 10000000) return;
+      // if (H_.size() >= 10000000) return;
       PatchMatchUpdatePixel(result, i, j, adjacent, sample);
       //std::cout << "Forward " << i << " " << j << " " << H_.size() << "\n";
     }
@@ -486,7 +502,7 @@ void DepthmapEstimator::PatchMatchBackwardPass(DepthmapEstimatorResult *result,
   int hpz = (patch_size_ - 1) / 2;
   for (int i = result->depth.rows - hpz - 1; i >= hpz; --i) {
     for (int j = result->depth.cols - hpz - 1; j >= hpz; --j) {
-      if (H_.size() >= 100) return;
+      // if (H_.size() >= 100) return;
       PatchMatchUpdatePixel(result, i, j, adjacent, sample);
       //std::cout << "Backward " << i << " " << j << " " << H_.size() << "\n";
     }
@@ -501,7 +517,7 @@ void DepthmapEstimator::PatchMatchUpdatePixel(DepthmapEstimatorResult *result,
     return;
   }
 
-  // Check neighbors and their planes for adjacent pixels.
+  // Check neighbors and their best match to see if it is also this pixel's best match
   for (int k = 0; k < 2; ++k) {
     int i_adjacent = i + adjacent[k][0];
     int j_adjacent = j + adjacent[k][1];
@@ -521,18 +537,20 @@ void DepthmapEstimator::PatchMatchUpdatePixel(DepthmapEstimatorResult *result,
     }
   }
 
-  // Check random planes for current neighbor.
+  // Perturb depth and plane guesses to see which is the best match with the other image
   float depth_range = 0.02;
   float normal_range = 0.5;
   int current_nghbr = result->nghbr.at<int>(i, j);
   for (int k = 0; k < 6; ++k) {
     float current_depth = result->depth.at<float>(i, j);
+    // Similar to log normal distribution of perturbation to depth
     float depth = current_depth * exp(depth_range * unit_normal_(rng_));
 
     cv::Vec3f current_plane = result->plane.at<cv::Vec3f>(i, j);
     if (current_plane(2) == 0.0) {
       continue;
     }
+    // normal distribution of perturbation to normal
     cv::Vec3f normal(-current_plane(0) / current_plane(2) +
                          normal_range * unit_normal_(rng_),
                      -current_plane(1) / current_plane(2) +
@@ -554,7 +572,7 @@ void DepthmapEstimator::PatchMatchUpdatePixel(DepthmapEstimatorResult *result,
     return;
   }
 
-  // Check random other neighbor for current plane.
+  // Check random other image to escape local minima
   int other_nghbr = uni_(rng_);
   while (other_nghbr == current_nghbr) {
     other_nghbr = uni_(rng_);
@@ -633,7 +651,7 @@ float DepthmapEstimator::ComputePlaneImageScore(int i, int j,
                                                 const cv::Vec3f &plane,
                                                 int other) {
   if (H_.size() >= 10000000) return 0;
-  auto t1 = std::chrono::high_resolution_clock::now();
+  // auto t1 = std::chrono::high_resolution_clock::now();
   cv::Matx33f H = PlaneInducedHomographyBaked(Kinvs_[0], Qs_[other], as_[other],
                                               Ks_[other], plane);
   int hpz = (patch_size_ - 1) / 2;
@@ -645,32 +663,38 @@ float DepthmapEstimator::ComputePlaneImageScore(int i, int j,
     return -1.0f;
   }
 
+  //du/dx
   float dfdx_x = (H(0, 0) * w - H(2, 0) * u) / (w * w);
+  //du/dy
   float dfdx_y = (H(1, 0) * w - H(2, 0) * v) / (w * w);
+  //dv/dx
   float dfdy_x = (H(0, 1) * w - H(2, 1) * u) / (w * w);
+  //dv/dy
   float dfdy_y = (H(1, 1) * w - H(2, 1) * v) / (w * w);
 
+  // homogeneous coordinates of center of corresponding patch in other image
   float Hx0 = u / w;
   float Hy0 = v / w;
 
   float im1_center = images_[0].at<unsigned char>(i, j);
 
   NCCEstimator ncc;
-  auto t2 = std::chrono::high_resolution_clock::now();
-  auto duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1);
-  uvw_time += duration.count();
-  H_.push_back(H);
-  u_.push_back(u);
-  v_.push_back(v);
-  w_.push_back(w);
-  i_.push_back(i);
-  j_.push_back(j);
-  Hj_.push_back(H(0, 0) * j);
-  Hi_.push_back(H(0, 1) * i);
-  Hij_.push_back(H(0, 0) * j + H(0, 1) * i);
+  // auto t2 = std::chrono::high_resolution_clock::now();
+  // auto duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1);
+  // uvw_time += duration.count();
+  // H_.push_back(H);
+  // u_.push_back(u);
+  // v_.push_back(v);
+  // w_.push_back(w);
+  // i_.push_back(i);
+  // j_.push_back(j);
+  // Hj_.push_back(H(0, 0) * j);
+  // Hi_.push_back(H(0, 1) * i);
+  // Hij_.push_back(H(0, 0) * j + H(0, 1) * i);
   for (int dy = -hpz; dy <= hpz; ++dy) {
     for (int dx = -hpz; dx <= hpz; ++dx) {
       float im1 = images_[0].at<unsigned char>(i + dy, j + dx);
+      // subpixel coordinates of (i+dy,j+dx) in images_[other]
       float x2 = Hx0 + dfdx_x * dx + dfdy_x * dy;
       float y2 = Hy0 + dfdx_y * dx + dfdy_y * dy;
       float im2 = LinearInterpolation<unsigned char>(images_[other], y2, x2);

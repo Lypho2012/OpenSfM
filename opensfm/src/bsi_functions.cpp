@@ -1,9 +1,8 @@
 #include <pybind11/pybind11.h>
 //#include <pybind11/stl.h>
-//#include <bsiCPP/bsi/BsiAttribute.hpp>
-#include </home/czhang/OpenSfM/bsiCPP/bsi/BsiAttribute.hpp> // TODO: change to relative path
-#include </home/czhang/OpenSfM/bsiCPP/bsi/BsiSigned.hpp>
-#include </home/czhang/OpenSfM/bsiCPP/bsi/BsiUnsigned.hpp>
+#include "/Users/zhang/OpenSfM/bsiCPP/bsi/BsiAttribute.hpp" // TODO: change to relative path
+#include "/Users/zhang/OpenSfM/bsiCPP/bsi/BsiSigned.hpp"
+#include "/Users/zhang/OpenSfM/bsiCPP/bsi/BsiUnsigned.hpp"
 namespace py = pybind11;
 /*template <typename T>
 class Bsi {

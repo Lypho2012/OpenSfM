@@ -3,9 +3,9 @@
 #include <opencv2/opencv.hpp>
 #include <random>
 
-#include </home/czhang/OpenSfM/bsiCPP/bsi/BsiAttribute.hpp> // TODO: change to relative path
-#include </home/czhang/OpenSfM/bsiCPP/bsi/BsiSigned.hpp>
-#include </home/czhang/OpenSfM/bsiCPP/bsi/BsiUnsigned.hpp>
+#include </Users/zhang/OpenSfM/bsiCPP/bsi/BsiAttribute.hpp> // TODO: change to relative path
+#include </Users/zhang/OpenSfM/bsiCPP/bsi/BsiSigned.hpp>
+#include </Users/zhang/OpenSfM/bsiCPP/bsi/BsiUnsigned.hpp>
 
 namespace dense {
 
@@ -130,12 +130,7 @@ class DepthmapEstimator {
   std::vector<float> Hj_;
   std::vector<float> Hij_;
   int uvw_time;
-  /*std::vector<BsiAttribute<uint64_t>*> H_bsi;
-  BsiAttribute<uint64_t>* i_bsi;
-  BsiAttribute<uint64_t>* j_bsi;
-  BsiAttribute<uint64_t>* u_bsi;
-  BsiAttribute<uint64_t>* v_bsi;
-  BsiAttribute<uint64_t>* w_bsi;*/
+  std::vector<BsiAttribute<uint64_t>*> Kinvs_bsi;
 };
 
 class DepthmapCleaner {
