@@ -47,6 +47,7 @@ endif()
 
 ####### Find Dependencies #######
 # find
+# find_package(OpenMP REQUIRED)
 if(APPLE)
 if(CMAKE_C_COMPILER_ID MATCHES "Clang")
     set(OpenMP_C "${CMAKE_C_COMPILER}" CACHE STRING "" FORCE)
@@ -65,7 +66,10 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   set(OpenMP_libiomp5_LIBRARY ${OpenMP_CXX_LIB_NAMES} CACHE STRING "" FORCE)
 endif()
 endif()
-
+# if (OPENMP_FOUND)
+#   set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+#   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+# endif()
 
 find_package(LAPACK)
 find_package(SuiteSparse)
@@ -95,17 +99,19 @@ else()
 endif()
 
 ####### Third party libraries #######
-add_subdirectory(third_party/pybind11)
+# add_subdirectory(third_party/pybind11)
 add_subdirectory(third_party/akaze)
 add_subdirectory(third_party/vlfeat)
 
 include_directories(third_party/vlfeat)
 
+find_package(pybind11 REQUIRED)
+
 ####### Bsi Functions #######
 #cmake_path(GET ${opensfm_SOURCE_DIR} PARENT_PATH OpenSfM_DIR)
 #include_directories("${OpenSfM_DIR}/bsiCPP")
 pybind11_add_module(pybsi bsi_functions.cpp)
-target_link_libraries(pybsi PRIVATE pybind11)
+target_link_libraries(pybsi PRIVATE pybind11::pybind11)
 target_include_directories(pybsi PRIVATE ${GLOG_INCLUDE_DIR})
 set_target_properties(pybsi PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${opensfm_SOURCE_DIR}/..")
 

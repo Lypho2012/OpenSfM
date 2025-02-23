@@ -33,7 +33,8 @@ def configure_c_extension():
     cmake_command = [
         "cmake",
         "../opensfm/src",
-        "-DPYTHON_EXECUTABLE=" + sys.executable
+        "-DPYTHON_EXECUTABLE=" + sys.executable,
+        "-DCMAKE_MODULE_PATH=/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages"
     ]
     if sys.platform == "win32":
         cmake_command += [
