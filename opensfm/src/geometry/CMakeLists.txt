@@ -48,7 +48,7 @@ target_link_libraries(pygeometry
   PRIVATE
     geometry
     foundation
-    pybind11
+    pybind11::pybind11
 )
 set_target_properties(pygeometry PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${opensfm_SOURCE_DIR}/.."

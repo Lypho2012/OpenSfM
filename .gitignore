@@ -31,3 +31,6 @@ data/berlin/*
 env/*
 
 output.txt
+
+test_libomp/*
+test_pybind/*

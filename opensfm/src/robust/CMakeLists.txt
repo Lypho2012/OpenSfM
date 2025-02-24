@@ -29,7 +29,7 @@ target_link_libraries(pyrobust
   PRIVATE
     robust
     foundation
-    pybind11
+    pybind11::pybind11
 )
 set_target_properties(pyrobust PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${opensfm_SOURCE_DIR}/.."

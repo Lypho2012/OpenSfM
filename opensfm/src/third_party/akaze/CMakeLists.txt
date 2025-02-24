@@ -16,4 +16,4 @@ target_include_directories(akaze
     ${CMAKE_SOURCE_DIR}/third_party/akaze/lib
   PRIVATE
     ${OpenCV_INCLUDE_DIRS}
-    ${OpenMP_CXX_INCLUDE_DIR})
+    ${OpenMP_INCLUDE_DIRS})

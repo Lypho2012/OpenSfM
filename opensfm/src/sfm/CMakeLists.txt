@@ -35,7 +35,7 @@ target_include_directories(pysfm PRIVATE ${GLOG_INCLUDE_DIR})
 target_link_libraries(pysfm
   PRIVATE
     foundation
-    pybind11
+    pybind11::pybind11
     sfm
 )
 set_target_properties(pysfm PROPERTIES

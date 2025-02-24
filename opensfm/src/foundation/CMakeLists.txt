@@ -14,17 +14,17 @@ target_link_libraries(foundation
   PUBLIC
     pybind11::pybind11
     ${OpenCV_LIBS}
-    ${OpenMP_libomp_LIBRARY}
     Eigen3::Eigen
   PRIVATE
     ${GFLAGS_LIBRARY}
     ${GLOG_LIBRARY}
+    OpenMP::OpenMP_C
 )
 target_include_directories(foundation
   PUBLIC
     ${PYTHON_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}
-    ${OpenMP_CXX_INCLUDE_DIR}
+    ${OpenMP_INCLUDE_DIRS}
 )
 
 if (OPENSFM_BUILD_TESTS)
