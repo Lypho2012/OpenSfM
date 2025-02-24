@@ -3,9 +3,9 @@
 #include <opencv2/opencv.hpp>
 #include <random>
 
-#include </Users/zhang/OpenSfM/bsiCPP/bsi/BsiAttribute.hpp> // TODO: change to relative path
-#include </Users/zhang/OpenSfM/bsiCPP/bsi/BsiSigned.hpp>
-#include </Users/zhang/OpenSfM/bsiCPP/bsi/BsiUnsigned.hpp>
+#include "bsi/BsiAttribute.hpp"
+#include "bsi/BsiSigned.hpp"
+#include "bsi/BsiUnsigned.hpp"
 
 namespace dense {
 

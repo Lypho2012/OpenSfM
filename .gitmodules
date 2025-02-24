@@ -4,3 +4,6 @@
 [submodule "bsiCPP"]
 	path = bsiCPP
 	url = https://github.com/gguzunsjsu/bsiCPP.git
+[submodule "opensfm/src/third_party/bsiCPP"]
+	path = opensfm/src/third_party/bsiCPP
+	url = https://github.com/gguzunsjsu/bsiCPP.git
