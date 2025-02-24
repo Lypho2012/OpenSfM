@@ -3,11 +3,18 @@
 
 namespace map {
 
+// std::set<map::ShotId> RigInstance::GetShotIDs() const {
+//   std::set<map::ShotId> shot_keys;
+//   std::transform(shots_.begin(), shots_.end(),
+//                  std::inserter(shot_keys, shot_keys.end()),
+//                  [](auto pair) { return pair.first; });
+//   return shot_keys;
+// }
 std::set<map::ShotId> RigInstance::GetShotIDs() const {
   std::set<map::ShotId> shot_keys;
-  std::transform(shots_.begin(), shots_.end(),
-                 std::inserter(shot_keys, shot_keys.end()),
-                 [](auto pair) { return pair.first; });
+  for (const auto& pair : shots_) {
+    shot_keys.insert(pair.first);
+  }
   return shot_keys;
 }
 
