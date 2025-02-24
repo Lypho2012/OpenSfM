@@ -172,7 +172,7 @@ iterator make_ptr_iterator(Iterator first, Sentinel last, Extra &&... extra) {
                  s.first_or_done = true;
                  throw stop_iteration();
                }
-               return s.it;
+               return *s.it;
              },
              std::forward<Extra>(extra)..., Policy);
   }
