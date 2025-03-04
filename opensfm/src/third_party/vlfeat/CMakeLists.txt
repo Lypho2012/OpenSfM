@@ -1,6 +1,6 @@
 file(GLOB VLFEAT_SRCS vl/*.c vl/*.h)
 
-if( ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64" )
+if( ${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm64|aarch64")
     add_definitions( -DVL_DISABLE_SSE2 )
 endif()
 
