@@ -156,7 +156,8 @@ template <return_value_policy Policy = return_value_policy::reference_internal,
           typename ValueType = std::iterator_traits<Iterator>::value_type,//decltype(std::declval<Iterator>()),
           typename... Extra>
 iterator make_ptr_iterator(Iterator first, Sentinel last, Extra &&... extra) {
-  typedef detail::sfm_iterator_state<Iterator, Sentinel, false, Policy> state;
+  // TODO: temporarily set as detail::ValueIterator instead of false because it doesn't seem to be used anywhere else
+  typedef detail::sfm_iterator_state<Iterator, Sentinel, detail::ValueIterator, Policy> state; 
 
   if (!detail::get_type_info(typeid(state), false)) {
     class_<state>(handle(), "iterator", pybind11::module_local())
