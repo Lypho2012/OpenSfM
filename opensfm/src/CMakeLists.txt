@@ -46,6 +46,11 @@ if (WIN32)
 endif()
 
 ####### Find Dependencies #######
+if (MACOS_BUILD)
+    if(EXISTS "/opt/homebrew")
+        set(OpenMP_ROOT /opt/homebrew/opt/libomp)
+    endif()
+endif()
 find_package(OpenMP COMPONENTS C REQUIRED)
 # link_libraries(OpenMP::OpenMP_C)
 # set(CMAKE_C_COMPILER /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang)
