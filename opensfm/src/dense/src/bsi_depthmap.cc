@@ -38,7 +38,7 @@ void BsiDepthmapEstimator::AssignMatrices(DepthmapEstimatorResult *result) {
 
         // assign plane
         std::vector<BsiAttribute<uint64_t>*> plane_vec;
-        result->plane.push_back(plane_vec);
+        result->plane.push_back(plane_vec); // TODO: check if push_back can be replaced with assignment
         result->plane[row].push_back(bsi.buildBsiAttributeFromVectorSigned(vec,0.5));
         result->plane[row].push_back(bsi.buildBsiAttributeFromVectorSigned(vec,0.5));
         result->plane[row].push_back(bsi.buildBsiAttributeFromVectorSigned(vec,0.5));
@@ -92,17 +92,16 @@ void BsiDepthmapEstimator::ComputeIgnoreMask(DepthmapEstimatorResult *result) {
     int hpz = (patch_size_ - 1) / 2;
     for (int i = hpz; i < result->depth.rows - hpz; ++i) {
         // masked represents a vector of 1's and 0's, where 0 means not masked
-        BsiAttribute<uint64_t>* masked = masks_[0].at[i];
-        // TODO: replace with relu
-        bool low_variance = PatchVariance(i) < min_patch_variance_;
+        HybridBitmap<uint64_t> masked = mask_.at[i];
+        HybridBitmap<uint64_t> low_variance = PatchVariance(i)->relu(min_patch_variance_ * (patch_size_ * patch_size_));
         // TODO: apply convolution based on where masked + low_variance is not equal to 0
-        if (masked || low_variance) {
-            AssignPixel(result, i, j, 0.0f, cv::Vec3f(0, 0, 0), 0.0f, 0);
+        if (masked->Or(low_variance)) {
+            AssignPixelRow(result, i, j, 0.0f, cv::Vec3f(0, 0, 0), 0.0f, 0);
         }
     }
 }
 
-float BsiDepthmapEstimator::PatchVariance(int i) {
+BsiAttribute<uint64_t>* BsiDepthmapEstimator::PatchVariance(int i) {
     BsiAttribute<uint64_t>* patch_sum = images[0].at(i);
     int hpz = (patch_size_ - 1) / 2;
     for (int u = -hpz; u <= hpz; ++u) {
@@ -113,7 +112,18 @@ float BsiDepthmapEstimator::PatchVariance(int i) {
     BsiAttribute<uint64_t>* mean = patch_sum / (patch_size_ * patch_size_);
     BsiAttribute<uint64_t>* variance = patch_sum - mean;
     BsiAttribute<uint64_t>* variance_squared = variance * variance;
-    return variance_squared->sumOfBsi();
+    return variance_squared;
+}
+
+void BsiDepthmapEstimator::AssignPixelRow(DepthmapEstimatorResult *result, int i,
+                    const BsiAttribute<uint64_t>* depth, const std::vector<BsiAttribute<uint64_t>*> &plane,
+                    const BsiAttribute<uint64_t>* score, const BsiAttribute<uint64_t>* nghbr, HybridBitmap<uint64_t>* mask) {
+    result->depth[i] = depth->maskAssign(result->depth[i],mask);
+    result->score[i] = score->maskAssign(result->score[i],mask);
+    result->nghbr[i] = nghbr->maskAssign(result->nghbr[i],mask);
+    result->plane[i][0] = plane->maskAssign(result->plane[i][0],mask);
+    result->plane[i][1] = plane->maskAssign(result->plane[i][1],mask);
+    result->plane[i][2] = plane->maskAssign(result->plane[i][2],mask);
 }
 
 void BsiDepthmapEstimator::ComputePatchMatch(DepthmapEstimatorResult *result) {
