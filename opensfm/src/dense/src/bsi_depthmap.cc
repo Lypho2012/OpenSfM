@@ -11,7 +11,7 @@ std::vector<BsiAttribute<uint64_t>*> PlaneFromDepthAndNormal(BsiAttribute<uint64
                                                              const std::vector<std::vector<BsiAttribute<uint64_t>*>> &K,
                                                              BsiAttribute<uint64_t>* depth,
                                                              const std::vector<BsiAttribute<uint64_t>*> &normal) {
-    // TODO: implement inverse, replace multiplication operations with matrix mult
+    // TODO: implement inverse and store it for use later or use K_inv, replace multiplication operations with matrix mult
     std::vector<BsiAttribute<uint64_t>*> homogeneous_coord;
     BsiSigned<uint64_t> bsi;
     std::vector<int> ones(x->rows, 1);
@@ -81,7 +81,7 @@ void BsiDepthmapEstimator::RandomInitialization(DepthmapEstimatorResult *result,
             score = ComputePlaneImageScore(i, j, plane, nghbr);
         } else {
             // TODO: don't implement for now, focus on compute patch match sample
-            ComputePlaneScore(i, j, plane, &score, &nghbr);
+//            ComputePlaneScore(i, j, plane, &score, &nghbr);
         }
         result->nghbr.push_back(nghbr);
         result->score.push_back(score);
@@ -92,14 +92,28 @@ void BsiDepthmapEstimator::ComputeIgnoreMask(DepthmapEstimatorResult *result) {
     int hpz = (patch_size_ - 1) / 2;
     for (int i = hpz; i < result->depth.rows - hpz; ++i) {
         // masked represents a vector of 1's and 0's, where 0 means not masked
-        BsiAttribute<uint64_t>* masked = masks_[0].at<unsigned char>[i];
-        // TODO: replace < with relu
-        bool low_variance = PatchVariance(i, j) < min_patch_variance_;
+        BsiAttribute<uint64_t>* masked = masks_[0].at[i];
+        // TODO: replace with relu
+        bool low_variance = PatchVariance(i) < min_patch_variance_;
         // TODO: apply convolution based on where masked + low_variance is not equal to 0
         if (masked || low_variance) {
             AssignPixel(result, i, j, 0.0f, cv::Vec3f(0, 0, 0), 0.0f, 0);
         }
     }
+}
+
+float BsiDepthmapEstimator::PatchVariance(int i) {
+    BsiAttribute<uint64_t>* patch_sum = images[0].at(i);
+    int hpz = (patch_size_ - 1) / 2;
+    for (int u = -hpz; u <= hpz; ++u) {
+        for (int v = -hpz; v <= hpz; ++v) {
+            patch_sum += images_[0].at<unsigned char>(i + u); // TODO: shift by v
+        }
+    }
+    BsiAttribute<uint64_t>* mean = patch_sum / (patch_size_ * patch_size_);
+    BsiAttribute<uint64_t>* variance = patch_sum - mean;
+    BsiAttribute<uint64_t>* variance_squared = variance * variance;
+    return variance_squared->sumOfBsi();
 }
 
 void BsiDepthmapEstimator::ComputePatchMatch(DepthmapEstimatorResult *result) {
@@ -153,7 +167,7 @@ void BsiDepthmapEstimator::PatchMatchUpdatePixelRow(DepthmapEstimatorResult *res
             CheckPlaneImageCandidate(result, i, plane, nghbr);
         } else {
             // TODO: don't implement for now and focus on sample
-            CheckPlaneCandidate(result, i, j, plane);
+//            CheckPlaneCandidate(result, i, j, plane);
         }
     }
 
@@ -183,7 +197,7 @@ void BsiDepthmapEstimator::PatchMatchUpdatePixelRow(DepthmapEstimatorResult *res
         if (sample) {
             CheckPlaneImageCandidate(result, i, j, plane, current_nghbr);
         } else {
-            CheckPlaneCandidate(result, i, j, plane);
+//            CheckPlaneCandidate(result, i, j, plane);
         }
 
         depth_range *= 0.3;
@@ -209,12 +223,26 @@ void BsiDepthmapEstimator::CheckPlaneImageCandidate(
         DepthmapEstimatorResult *result, int i, const std::vector<BsiAttribute<uint64_t>*> &plane,
         BsiAttribute<uint64_t>* nghbr) {
     BsiAttribute<uint64_t>* score = ComputePlaneImageScore(i, j, plane, nghbr);
-    // TODO: filtered convolution using score
+    // TODO: mask with relu
     if (score > result->score.at(i)) {
         BsiAttribute<uint64_t>* depth = DepthOfPlaneBackprojection(j, i, Ks_[0], plane);
         // TODO: implement assignpixelrow and make sure to deallocate replaced objects
         AssignPixelRow(result, i, j, depth, plane, score, nghbr);
     }
+}
+
+BsiAttribute<uint64_t>* DepthOfPlaneBackprojection(BsiAttribute<uint64_t>* x, BsiAttribute<uint64_t>* y,
+                                                   const std::vector<std::vector<BsiAttribute<uint64_t>*>> &K,
+                                                   const std::vector<BsiAttribute<uint64_t>*> &plane) {
+    std::vector<BsiAttribute<uint64_t>*> homogeneous_coord;
+    BsiSigned<uint64_t> bsi;
+    std::vector<int> ones(x->rows, 1);
+    homogeneous_coord.push_back(x);
+    homogeneous_coord.push_back(y);
+    homogeneous_coord.push_back(bsi.buildBsiAttributeFromVectorSigned(ones));
+    // TODO: implement matrix mult
+    BsiAttribute<uint64_t>* denom = -(plane.t() * K.inv() * homogeneous_coord)[0];
+    return 1.0f / std::max(1e-6f, denom);
 }
 
 BsiAttribute<uint64_t>* BsiDepthmapEstimator::ComputePlaneImageScore(BsiAttribute<uint64_t>* i, BsiAttribute<uint64_t>* j,
@@ -317,6 +345,7 @@ void BsiNCCEstimator::Push(BsiAttribute<uint64_t>* x, BsiAttribute<uint64_t>* y,
 }
 
 float BsiNCCEstimator::Get() {
+    // TODO: mask with relu
     if (sumw_ == 0.0) {
         return -1;
     }
@@ -334,6 +363,20 @@ float BsiNCCEstimator::Get() {
         // covariance between intensities in the overlap of x and y / standard deviation of intensities
         // normalized by standard deviation to prevent change in brightness from affecting score
         return (meanxy - meanx * meany) / sqrt(varx * vary);
+    }
+}
+
+void BsiDepthmapEstimator::PostProcess(DepthmapEstimatorResult *result) {
+    cv::Mat depth_filtered;
+    cv::medianBlur(result->depth, depth_filtered, 5); // TODO: convolution - take median of kernel size 5
+
+    for (int i = 0; i < result->depth.rows; ++i) {
+        BsiAttribute<uint64_t>* d = result->depth.at(i);
+        BsiAttribute<uint64_t>* m = depth_filtered.at(i);
+        // TODO: mask with relu
+        if (d == 0.0 || fabs(d - m) / d > 0.05) {
+            result->depth.at<float>(i) = 0;
+        }
     }
 }
 

@@ -56,6 +56,7 @@ int patchmatch_iterations_;
 int patch_size_;
 std::vector<std::vector<BsiAttribute<uint64_t>*>> images_;
 std::vector<std::vector<BsiAttribute<uint64_t>*>> masks_; // TODO: make masks BsiAttribute of bools
+std::vector<float> patch_variance_buffer_;
 };
 
 }
