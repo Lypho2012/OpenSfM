@@ -1,10 +1,13 @@
+/*
+ * Note: behavior for borders of images is not defined; i.e. indices with values between [0,hpz)
+ */
 #include "bsi/BsiAttribute.hpp"
 #include "bsi/BsiSigned.hpp"
 #include "bsi/BsiUnsigned.hpp"
 #include "../bsi_depthmap.h"
 
 #include <iostream>
-
+// TODO: implement remaining methods called from dense.py
 namespace bsidense {
 
 std::vector<BsiAttribute<uint64_t>*> PlaneFromDepthAndNormal(BsiAttribute<uint64_t>* x, BsiAttribute<uint64_t>* y,
@@ -19,7 +22,7 @@ std::vector<BsiAttribute<uint64_t>*> PlaneFromDepthAndNormal(BsiAttribute<uint64
     homogeneous_coord.push_back(y);
     homogeneous_coord.push_back(bsi.buildBsiAttributeFromVectorSigned(ones));
     std::vector<BsiAttribute<uint64_t>*> point = depth * inverse(K) * homogeneous_coord;
-    // TODO: replace dot, replace max with relu
+    // TODO: replace dot, relu
     std::vector<BsiAttribute<uint64_t>*> res;
     for (int i=0; i<normal.size(); i++) {
         BsiAttribute<uint64_t>* = -normal[i].dot(point[i]);
@@ -38,7 +41,7 @@ void BsiDepthmapEstimator::AssignMatrices(DepthmapEstimatorResult *result) {
 
         // assign plane
         std::vector<BsiAttribute<uint64_t>*> plane_vec;
-        result->plane.push_back(plane_vec); // TODO: check if push_back can be replaced with assignment
+        result->plane.push_back(plane_vec);
         result->plane[row].push_back(bsi.buildBsiAttributeFromVectorSigned(vec,0.5));
         result->plane[row].push_back(bsi.buildBsiAttributeFromVectorSigned(vec,0.5));
         result->plane[row].push_back(bsi.buildBsiAttributeFromVectorSigned(vec,0.5));
@@ -94,10 +97,10 @@ void BsiDepthmapEstimator::ComputeIgnoreMask(DepthmapEstimatorResult *result) {
         // masked represents a vector of 1's and 0's, where 0 means not masked
         HybridBitmap<uint64_t> masked = mask_.at[i];
         HybridBitmap<uint64_t> low_variance = PatchVariance(i)->relu(min_patch_variance_ * (patch_size_ * patch_size_));
-        // TODO: apply convolution based on where masked + low_variance is not equal to 0
-        if (masked->Or(low_variance)) {
-            AssignPixelRow(result, i, j, 0.0f, cv::Vec3f(0, 0, 0), 0.0f, 0);
-        }
+        // TODO: check if this correctly initializes
+        AssignPixelRow(result, i, new BsiSigned<uint64_t>(result->depth.cols),
+                {new BsiSigned<uint64_t>(result->depth.cols),new BsiSigned<uint64_t>(result->depth.cols),new BsiSigned<uint64_t>(result->depth.cols)},
+                new BsiSigned<uint64_t>(result->depth.cols), new BsiSigned<uint64_t>(result->depth.cols), masked->Or(low_variance));
     }
 }
 
@@ -106,7 +109,7 @@ BsiAttribute<uint64_t>* BsiDepthmapEstimator::PatchVariance(int i) {
     int hpz = (patch_size_ - 1) / 2;
     for (int u = -hpz; u <= hpz; ++u) {
         for (int v = -hpz; v <= hpz; ++v) {
-            patch_sum += images_[0].at<unsigned char>(i + u); // TODO: shift by v
+            patch_sum += images_[0].at(i + u)->shift(v);
         }
     }
     BsiAttribute<uint64_t>* mean = patch_sum / (patch_size_ * patch_size_);
@@ -118,12 +121,23 @@ BsiAttribute<uint64_t>* BsiDepthmapEstimator::PatchVariance(int i) {
 void BsiDepthmapEstimator::AssignPixelRow(DepthmapEstimatorResult *result, int i,
                     const BsiAttribute<uint64_t>* depth, const std::vector<BsiAttribute<uint64_t>*> &plane,
                     const BsiAttribute<uint64_t>* score, const BsiAttribute<uint64_t>* nghbr, HybridBitmap<uint64_t>* mask) {
+    BsiAttribute<uint64_t>* prev_depth = result->depth[i];
+    BsiAttribute<uint64_t>* prev_score = result->score[i];
+    BsiAttribute<uint64_t>* prev_nghbr = result->nghbr[i];
+    std::vector<BsiAttribute<uint64_t>*> prev_plane = result->plane[i];
     result->depth[i] = depth->maskAssign(result->depth[i],mask);
     result->score[i] = score->maskAssign(result->score[i],mask);
     result->nghbr[i] = nghbr->maskAssign(result->nghbr[i],mask);
     result->plane[i][0] = plane->maskAssign(result->plane[i][0],mask);
     result->plane[i][1] = plane->maskAssign(result->plane[i][1],mask);
     result->plane[i][2] = plane->maskAssign(result->plane[i][2],mask);
+    del prev_depth;
+    del prev_score;
+    del prev_nghbr;
+    del prev_plane[0];
+    del prev_plane[1];
+    del prev_plane[2];
+    del prev_plane;
 }
 
 void BsiDepthmapEstimator::ComputePatchMatch(DepthmapEstimatorResult *result) {
@@ -136,7 +150,7 @@ void BsiDepthmapEstimator::ComputePatchMatch(DepthmapEstimatorResult *result) {
         PatchMatchBackwardPass(result, false); // TODO
     }
     
-    PostProcess(result); // TODO
+    PostProcess(result);
 }
 
 void BsiDepthmapEstimator::PatchMatchForwardPass(DepthmapEstimatorResult *result,
@@ -153,9 +167,7 @@ void BsiDepthmapEstimator::PatchMatchUpdatePixelRow(DepthmapEstimatorResult *res
                                               bool sample) {
     // Ignore pixels with depth == 0.
     // TODO: mask convolution at the end with relu
-    if (result->depth.at<float>(i, j) == 0.0f) {
-        return;
-    }
+    HybridBitmap<uint64_t> mask = result->depth.at(i)->relu(0)->Not();
 
     // Check neighbors and their best match to see if it is also this pixel's best match
     for (int k = 0; k < 2; ++k) {
@@ -163,17 +175,16 @@ void BsiDepthmapEstimator::PatchMatchUpdatePixelRow(DepthmapEstimatorResult *res
         int j_adjacent = j + adjacent[k][1];
 
         // Do not propagate ignored adjacent pixels.
-        // TODO: mask convolution at the end with relu
+        // TODO: figure out how to mask convolution at the end with relu
+        // result->depth.at(i_adjacent)->relu(0)->Not();
         if (result->depth.at<float>(i_adjacent, j_adjacent) == 0.0f) {
             continue;
         }
 
-        // TODO: plane needs to be shifted by j_adjacent, then chop off most significant number to keep the BsiAttributes the same size
-        std::vector<BsiAttribute<uint64_t>*> plane = result->plane.at(i_adjacent);
+        std::vector<BsiAttribute<uint64_t>*> plane = result->plane.at(i_adjacent)->shift(j_adjacent);
 
         if (sample) {
-            // TODO: nghbr needs to be shifted by j_adjacent, then chop off most significant number to keep the BsiAttributes the same size
-            BsiAttribute<uint64_t>* nghbr = result->nghbr.at(i_adjacent);
+            BsiAttribute<uint64_t>* nghbr = result->nghbr.at(i_adjacent)->shift(j_adjacent);
             CheckPlaneImageCandidate(result, i, plane, nghbr);
         } else {
             // TODO: don't implement for now and focus on sample
@@ -220,7 +231,7 @@ void BsiDepthmapEstimator::PatchMatchUpdatePixelRow(DepthmapEstimatorResult *res
 
     // Check random other image to escape local minima
     BsiAttribute<uint64_t>* other_nghbr = uni_(rng_);
-    // TODO: subtract other_nghbr and current_nghbr and check if any of the elements are zero
+    // TODO: subtract other_nghbr and current_nghbr and check if any of the elements are zero (NAND)
     while (other_nghbr == current_nghbr) {
         other_nghbr = uni_(rng_);
     }
@@ -233,10 +244,9 @@ void BsiDepthmapEstimator::CheckPlaneImageCandidate(
         DepthmapEstimatorResult *result, int i, const std::vector<BsiAttribute<uint64_t>*> &plane,
         BsiAttribute<uint64_t>* nghbr) {
     BsiAttribute<uint64_t>* score = ComputePlaneImageScore(i, j, plane, nghbr);
-    // TODO: mask with relu
+    // TODO: implement relu between bsi
     if (score > result->score.at(i)) {
         BsiAttribute<uint64_t>* depth = DepthOfPlaneBackprojection(j, i, Ks_[0], plane);
-        // TODO: implement assignpixelrow and make sure to deallocate replaced objects
         AssignPixelRow(result, i, j, depth, plane, score, nghbr);
     }
 }
@@ -261,18 +271,16 @@ BsiAttribute<uint64_t>* BsiDepthmapEstimator::ComputePlaneImageScore(BsiAttribut
     std::vector<std::vector<BsiAttribute<uint64_t>*>> H = PlaneInducedHomographyBaked(Kinvs_[0], Qs_[other], as_[other],
                                                 Ks_[other], plane);
     int hpz = (patch_size_ - 1) / 2;
-    // TODO: overload multiplication, sum, division, negative, subtraction
     BsiAttribute<uint64_t>* u = H[0][0] * j + H[0][1] * i + H[0][2];
     BsiAttribute<uint64_t>* v = H[1][0] * j + H[1][1] * i + H[1][2];
     BsiAttribute<uint64_t>* w = H[2][0] * j + H[2][1] * i + H[2][2];
 
-    // TODO: filter with relu at the end
+    // TODO: use relu to make mask, then use mask to avoid adding to ncc result
     if (w == 0.0) {
         return -1.0f;
     }
 
     //du/dx
-    // TODO: make sure division is implemented safely to handle zero division
     BsiAttribute<uint64_t>* dfdx_x = (H[0][0] * w - H[2][0] * u) / (w * w);
     //du/dy
     BsiAttribute<uint64_t>* dfdx_y = (H[1][0] * w - H[2][0] * v) / (w * w);
@@ -290,8 +298,7 @@ BsiAttribute<uint64_t>* BsiDepthmapEstimator::ComputePlaneImageScore(BsiAttribut
     BsiNCCEstimator ncc;
     for (int dy = -hpz; dy <= hpz; ++dy) {
         for (int dx = -hpz; dx <= hpz; ++dx) {
-            // TODO: shift j by dx and chop off
-            BsiAttribute<uint64_t>* im1 = images_[0].at(i + dy);
+            BsiAttribute<uint64_t>* im1 = images_[0].at(i + dy).shift(dx);
             // subpixel coordinates of (i+dy,j+dx) in images_[other]
             BsiAttribute<uint64_t>* x2 = Hx0 + dfdx_x * dx + dfdy_x * dy;
             BsiAttribute<uint64_t>* y2 = Hy0 + dfdx_y * dx + dfdy_y * dy;
@@ -323,9 +330,9 @@ BsiAttribute<uint64_t>* LinearInterpolation(std::vector<BsiAttribute<uint64_t>*>
     BsiAttribute<uint64_t>* dx = get_decimal_part(x);
     BsiAttribute<uint64_t>* dy = get_decimal_part(y);
     BsiAttribute<uint64_t>* im00 = image.at(iy);
-    BsiAttribute<uint64_t>* im01 = image.at(iy); // TODO: shift x + 1
+    BsiAttribute<uint64_t>* im01 = image.at(iy).shift(1);
     BsiAttribute<uint64_t>* im10 = image.at(iy + 1);
-    BsiAttribute<uint64_t>* im11 = image.at(iy + 1); // TODO: shift x + 1
+    BsiAttribute<uint64_t>* im11 = image.at(iy + 1).shift(1);
     BsiAttribute<uint64_t>* im0 = (1 - dx) * im00 + dx * im01;
     BsiAttribute<uint64_t>* im1 = (1 - dx) * im10 + dx * im11;
     return (1 - dy) * im0 + dy * im1;
@@ -385,7 +392,7 @@ void BsiDepthmapEstimator::PostProcess(DepthmapEstimatorResult *result) {
         BsiAttribute<uint64_t>* m = depth_filtered.at(i);
         // TODO: mask with relu
         if (d == 0.0 || fabs(d - m) / d > 0.05) {
-            result->depth.at<float>(i) = 0;
+            result->depth.at(i) = 0;
         }
     }
 }
