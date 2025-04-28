@@ -2,8 +2,8 @@ set(DENSE_FILES
     depthmap_bind.h
     depthmap.h
     src/depthmap.cc
-    bsi_depthmap.h
-    src/bsi_depthmap.cc
+    # bsi_depthmap.h
+    # src/bsi_depthmap.cc
 )
 add_library(dense ${DENSE_FILES})
 target_link_libraries(dense PRIVATE foundation)
