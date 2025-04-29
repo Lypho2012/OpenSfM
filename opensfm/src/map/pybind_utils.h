@@ -153,7 +153,7 @@ iterator make_ref_iterator(Iterator first, Sentinel last, Extra &&... extra) {
 /// Makes a python iterator from a first and past-the-end C++ InputIterator.
 template <return_value_policy Policy = return_value_policy::reference_internal,
           typename Iterator, typename Sentinel,
-          typename ValueType = std::iterator_traits<Iterator>::value_type,//decltype(std::declval<Iterator>()),
+          typename ValueType = typename std::iterator_traits<Iterator>::value_type,//decltype(std::declval<Iterator>()),
           typename... Extra>
 iterator make_ptr_iterator(Iterator first, Sentinel last, Extra &&... extra) {
   // TODO: temporarily set as detail::ValueIterator instead of false because it doesn't seem to be used anywhere else
