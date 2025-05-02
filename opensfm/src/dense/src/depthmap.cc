@@ -6,6 +6,7 @@
 #include "bsi/BsiAttribute.hpp"
 #include "bsi/BsiSigned.hpp"
 #include "bsi/BsiUnsigned.hpp"
+#include "../bsi_depthmap.h"
 
 #include <iostream>
 #include <fstream>
@@ -219,212 +220,20 @@ void DepthmapEstimator::ComputePatchMatch(DepthmapEstimatorResult *result) {
   PostProcess(result);
 }
 
-/*void DepthmapEstimator::precomputeH(DepthmapEstimatorResult *result) {
-  long PRECISION = 1000;
-  BsiSigned<uint64_t> bsi;
-  std::vector<BsiAttribute<uint64_t>*> Ks_bsi; // 9 BSI
-  for (int i=0; i<3; i++) {
-    for (int j=0; j<3; j++) {
-      std::vector<long> vec;
-      for (int k=0; k < Ks_.size(); k++) {
-        vec.push_back(static_cast<long>(Ks_[k](i, j))*PRECISION);
-      }
-      Ks_bsi.push_back(bsi.buildBsiAttributeFromVectorSigned(vec,0.5));
-    }
-  }
-  std::vector<BsiAttribute<uint64_t>*> Qs_bsi; // 9 BSI
-  std::vector<BsiAttribute<uint64_t>*> as_bsi; // 3 BSI
-  std::vector<BsiAttribute<uint64_t>*> plane_bsi; // 3 BSI
-  std::vector<BsiAttribute<uint64_t>*> Kinvs_bsi; // 9 BSI
-}*/
-
-void DepthmapEstimator::ComputePatchMatchSample(
-    DepthmapEstimatorResult *result) {
-  //precomputeH(result);
-
-  //auto t = std::chrono::high_resolution_clock::now();
-  //std::cout << "start ComputePatchMatchSample \n";
+void DepthmapEstimator::ComputePatchMatchSample(DepthmapEstimatorResult *result) {
   AssignMatrices(result);
-  //auto t1 = std::chrono::high_resolution_clock::now();
-  //auto duration = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t);
-  //std::cout << "AssignMatrices: "<< duration.count() << "\n";
-  RandomInitialization(result, true);
-  //auto t2 = std::chrono::high_resolution_clock::now();
-  //duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1);
-  //std::cout << "RandomInitialization: " << duration.count() << "\n";
+
+  bsidense::AssignMatrices(new BsiDepthmapEstimatorResult{});
+
+  /*RandomInitialization(result, true);
   ComputeIgnoreMask(result);
-  //auto t3 = std::chrono::high_resolution_clock::now();
-  //duration = std::chrono::duration_cast<std::chrono::microseconds>(t3 - t2);
-  //std::cout << "ComputeIgnoreMask: " << duration.count() << "\n";
-  //std::cout << ((patch_size_ - 1) / 2) << " " << result->depth.rows << " " << result->depth.cols << "\n";
 
-  // convert Kinvs_, Qs_, as_, and Ks_ to bsi
-  double PRECISION = 1000000;
-  BsiSigned<uint64_t> bsi;
-  for (int h=0; h<3; h++) {
-    for (int j=0; j<3; j++) {
-      std::vector<long> vec;
-      for (int k=0; k < H_.size(); k++) {
-        vec.emplace_back(static_cast<long>(Kinvs_[k](h, j)*PRECISION));
-      }
-      Kinvs_bsi.emplace_back(bsi.buildBsiAttributeFromVectorSigned(vec,0.5));
-    }
-  }
-  
-
-  //std::ofstream MyFile("input10M.txt");
   for (int i = 0; i < patchmatch_iterations_; ++i) {
-    //auto t31 = std::chrono::high_resolution_clock::now();
-    //std::cout << i << "\n";
     PatchMatchForwardPass(result, true);
-    //std::cout << i << " " << "forward pass: " << H_.size() << "\n";
-    //auto t32 = std::chrono::high_resolution_clock::now();
-    //duration = std::chrono::duration_cast<std::chrono::microseconds>(t32 - t31);
-    //std::cout << "PatchMatchForwardPass: " << duration.count() << "\n";
-    
-    std::vector<BsiAttribute<uint64_t>*> H_bsi;
-    for (int h=0; h<3; h++) {
-      for (int j=0; j<3; j++) {
-        std::vector<long> vec;
-        for (int k=0; k < H_.size(); k++) {
-          vec.emplace_back(static_cast<long>(H_[k](h, j)*PRECISION));
-          //MyFile << H_[k](h, j) << " ";
-          //std::cout << H_[k](h, j) << " ";
-        }
-        //MyFile << "\n";
-        //std::cout <<"\n";
-        //std::cout << "vec size: " << vec.size() << "\n";
-        H_bsi.emplace_back(bsi.buildBsiAttributeFromVectorSigned(vec,0.5));
-        //std::cout << "build bsi\n";
-        vec.clear();
-        //std::cout << "clear vec\n";
-      }
-    }
-    /*for (int k=0; k < H_.size(); k++) {
-      MyFile << i_[k] << " ";
-    }
-    MyFile << "\n";
-    for (int k=0; k < H_.size(); k++) {
-      MyFile << j_[k] << " ";
-    }
-    MyFile << "\n";
-    MyFile.close();*/
-    /*std::cout << "i: ";
-    for (int k=0; k < H_.size(); k++) {
-      std::cout << i_[k] << " ";
-    }
-    std::cout << "\n";
-    std::cout << "j: ";
-    for (int k=0; k < H_.size(); k++) {
-      std::cout << j_[k] << " ";
-    }
-    std::cout << "\n";*/
-    std::cout << "H_ size: " << H_.size() << " " << i_.size() << " " << j_.size() << " " << H_bsi.size() << "\n";
-    BsiAttribute<uint64_t>* i_bsi = bsi.buildBsiAttributeFromVectorSigned(i_,0.5);
-    BsiAttribute<uint64_t>* j_bsi = bsi.buildBsiAttributeFromVectorSigned(j_,0.5);
-    
-    auto t1 = std::chrono::high_resolution_clock::now();
-    BsiAttribute<uint64_t>* u_bsi = H_bsi[0]->multiplyWithBsiHorizontal(j_bsi)->SUM(H_bsi[1]->multiplyWithBsiHorizontal(i_bsi)->SUM(H_bsi[2]));
-    BsiAttribute<uint64_t>* v_bsi = H_bsi[3]->multiplyWithBsiHorizontal(j_bsi)->SUM(H_bsi[4]->multiplyWithBsiHorizontal(i_bsi)->SUM(H_bsi[5]));
-    BsiAttribute<uint64_t>* w_bsi = H_bsi[6]->multiplyWithBsiHorizontal(j_bsi)->SUM(H_bsi[7]->multiplyWithBsiHorizontal(i_bsi)->SUM(H_bsi[8]));
-
-    auto t2 = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1);
-    auto x = 0;
-    auto t3 = std::chrono::high_resolution_clock::now();
-    for (int k=0; k<H_.size(); k++) {
-      double u = H_[k](0,0) * j_[k] + H_[k](0,1) * i_[k] + H_[k](0,2);
-      x += u;
-    }
-    for (int k=0; k<H_.size(); k++) {
-      double u = H_[k](1,0) * j_[k] + H_[k](1,1) * i_[k] + H_[k](1,2);
-      x += u;
-    }
-    for (int k=0; k<H_.size(); k++) {
-      double u = H_[k](2,0) * j_[k] + H_[k](2,1) * i_[k] + H_[k](2,2);
-      x += u;
-    }
-    auto t4 = std::chrono::high_resolution_clock::now();
-    std::cout << x << "\n";
-    auto duration2 = std::chrono::duration_cast<std::chrono::nanoseconds>(t4 - t3);
-    std::cout << "Calculate u,v,w: BSI: " << duration.count() << " Regular: " << duration2.count()<< "\n";
-    std::cout << "U size: " << u_bsi->rows << " V size: " << v_bsi->rows << " W size: " << w_bsi->rows << "\n";
-    break;
-    double residuals_u = 0;
-    double mean_u = 0;
-    double squares_u = 0;
-    double residuals_v = 0;
-    double mean_v = 0;
-    double squares_v = 0;
-    double residuals_w = 0;
-    double mean_w = 0;
-    double squares_w = 0;
-    for (int k=0; k<H_.size(); k++) {
-      //std::cout << k << "\n";
-      double residual_u = u_bsi->getValue(k)/PRECISION - u_[k];
-      residuals_u += residual_u*residual_u;
-      //std::cout << "u: " << residuals_u << "\n";
-      mean_u += u_[k];
-      double residual_v = v_bsi->getValue(k)/PRECISION - v_[k];
-      residuals_v += residual_v*residual_v;
-      //std::cout << "v: " << residuals_v << "\n";
-      mean_v += v_[k];
-      double residual_w = w_bsi->getValue(k)/PRECISION - w_[k];
-      residuals_w += residual_w*residual_w;
-      //std::cout << "w: " << residuals_w << "\n";
-      mean_w += w_[k];
-    }
-    mean_u /= H_.size();
-    mean_v /= H_.size();
-    mean_w /= H_.size();
-    for (int k=0; k<H_.size(); k++) {
-      double square_u = u_[k] - mean_u;
-      squares_u += square_u*square_u;
-      double square_v = v_[k] - mean_v;
-      squares_v += square_v*square_v;
-      double square_w = w_[k] - mean_w;
-      squares_w += square_w*square_w;
-    }
-    std::cout << "MSE u: " << residuals_u/H_.size() << " MSE v: " << residuals_v/H_.size() << " MSE w: " << residuals_w/H_.size() << "\n";
-    std::cout << "R2 u: " << 1 - residuals_u/H_.size()/squares_u << " R2 v: " << 1 - residuals_v/H_.size()/squares_v << " R2 w: " << 1 - residuals_w/H_.size()/squares_w << "\n";
-    
-    H_.clear();
-    u_.clear();
-    v_.clear();
-    w_.clear();
-    i_.clear();
-    j_.clear();
-    Hij_.clear();
-    Hi_.clear();
-    Hj_.clear();
-    H_bsi.clear();
-    std::cout << "finish clearing\n";
-    break;
     PatchMatchBackwardPass(result, true);
-    H_.clear();
-    u_.clear();
-    v_.clear();
-    w_.clear();
-    i_.clear();
-    j_.clear();
-    Hij_.clear();
-    Hi_.clear();
-    Hj_.clear();
-    std::cout << "finish clearing again\n";
-    //std::cout << "backward pass: " << H_.size() << "\n";
-    //auto t33 = std::chrono::high_resolution_clock::now();
-    //duration = std::chrono::duration_cast<std::chrono::microseconds>(t33 - t32);
-    //std::cout << "PatchMatchBackwardPass: " << duration.count() << "\n";
   }
 
-  //auto t4 = std::chrono::high_resolution_clock::now();
-  //duration = std::chrono::duration_cast<std::chrono::microseconds>(t4 - t3);
-  //std::cout << "patchmatch_iterations_: " << duration.count() << "\n";
-
-  PostProcess(result);
-  //auto t5 = std::chrono::high_resolution_clock::now();
-  //duration = std::chrono::duration_cast<std::chrono::microseconds>(t5 - t4);
-  //std::cout << "PostProcess: " << duration.count() << "\n";
+  PostProcess(result);*/
 }
 
 void DepthmapEstimator::AssignMatrices(DepthmapEstimatorResult *result) {
