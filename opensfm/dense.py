@@ -124,6 +124,10 @@ def compute_depthmap(arguments):
 
     bde = pydense.BsiDepthmapEstimator()
     bde.set_depth_range(min_depth, max_depth, 100)
+    de.set_patchmatch_iterations(data.config["depthmap_patchmatch_iterations"])
+    de.set_patch_size(data.config["depthmap_patch_size"])
+    de.set_min_patch_sd(data.config["depthmap_min_patch_sd"])
+    add_views_to_bsi_depth_estimator(data, neighbors, bde)
 
     if method == "BRUTE_FORCE":
         depth, plane, score, nghbr = de.compute_brute_force()
@@ -324,6 +328,26 @@ def add_views_to_depth_estimator(data: UndistortedDataSet, neighbors, de):
         R = shot.pose.get_rotation_matrix()
         t = shot.pose.translation
         de.add_view(K, R, t, image, mask)
+
+def add_views_to_bsi_depth_estimator(data: UndistortedDataSet, neighbors, bde):
+    """Add neighboring views to the BsiDepthmapEstimator."""
+    num_neighbors = data.config["depthmap_num_matching_views"]
+    bde.initialize_views(num_neighbors)
+    for shot in neighbors[: num_neighbors + 1]:
+        assert shot.camera.projection_type == "perspective"
+        color_image = data.load_undistorted_image(shot.id)
+        mask = load_combined_mask(data, shot)
+        gray_image = cv2.cvtColor(color_image, cv2.COLOR_RGB2GRAY)
+        original_height, original_width = gray_image.shape
+        width = min(original_width, int(data.config["depthmap_resolution"]))
+        height = width * original_height // original_width
+        image = scale_down_image(gray_image, width, height)
+        mask = scale_image(mask, image.shape[1], image.shape[0], cv2.INTER_NEAREST)
+        K = shot.camera.get_K_in_pixel_coordinates(width, height)
+        R = shot.pose.get_rotation_matrix()
+        t = shot.pose.translation
+        bde.add_view(K, R, t, image, mask)
+    bde.process_views()
 
 
 def add_views_to_depth_cleaner(data: UndistortedDataSet, neighbors, dc):

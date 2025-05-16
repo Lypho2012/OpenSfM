@@ -5,6 +5,7 @@
 #include <dense/depthmap_bind.h>
 #include <dense/openmvs_exporter.h>
 #include <foundation/python_types.h>
+#include <dense/bsi_depthmap_bind.h>
 
 PYBIND11_MODULE(pydense, m) {
   py::class_<dense::OpenMVSExporter>(m, "OpenMVSExporter")
@@ -33,7 +34,13 @@ PYBIND11_MODULE(pydense, m) {
       .def(py::init())
       .def("set_depth_range", &bsidense::BsiDepthmapEstimatorWrapper::SetDepthRange)
       .def("add_view",
-           &bsidense::BsiDepthmapEstimatorWrapper::AddView);
+           &bsidense::BsiDepthmapEstimatorWrapper::AddView)
+      .def("set_patchmatch_iterations",
+           &bsidense::BsiDepthmapEstimatorWrapper::SetPatchMatchIterations)
+      .def("set_patch_size", &bsidense::BsiDepthmapEstimatorWrapper::SetPatchSize)
+      .def("set_min_patch_sd", &bsidense::BsiDepthmapEstimatorWrapper::SetMinPatchSD)
+      .def("initialize_views", &bsidense::BsiDepthmapEstimatorWrapper::InitializeViews)
+      .def("process_views", &bsidense::BsiDepthmapEstimatorWrapper::ProcessViews);
 
   py::class_<dense::DepthmapCleanerWrapper>(m, "DepthmapCleaner")
       .def(py::init())

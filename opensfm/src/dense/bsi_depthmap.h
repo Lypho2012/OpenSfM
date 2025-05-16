@@ -72,13 +72,14 @@ BsiAttribute<uint64_t>* ComputePlaneImageScore(int i,
 void InitializeViews(size_t num_images);
 void AddView(const double *pK, const double *pR, const double *pt,
     const unsigned char *pimage, const unsigned char *pmask,
-    size_t width, size_t height, size_t num_images);
-void ProcessViewsToBsi(size_t num_images);
+    size_t width, size_t height);
+void ProcessViewsToBsi();
 void SetDepthRange(double min_depth, double max_depth, int num_depth_planes);
+void SetPatchMatchIterations(int n);
+void SetPatchSize(int size);
+void SetMinPatchSD(float sd);
 
 private:
-int patchmatch_iterations_;
-int patch_size_;
 std::vector<std::vector<BsiAttribute<uint64_t>*>> images_bsi; // number of images x number of rows matrix
 std::vector<HybridBitmap<uint64_t>> mask_; // TODO: only need to store masks_[0]
 std::vector<std::vector<BsiAttribute<uint64_t>*>> Ks_bsi; // 3x3 matrix of BsiAttribute
@@ -87,8 +88,12 @@ std::vector<BsiAttribute<uint64_t>*> ts_bsi;
 std::vector<std::vector<BsiAttribute<uint64_t>*>> Kinvs_bsi;
 std::vector<std::vector<BsiAttribute<uint64_t>*>> Qs_bsi;
 std::vector<BsiAttribute<uint64_t>*> as_bsi;
-double min_depth_, max_depth_;
 BsiAttribute<uint64_t>* x; // TODO: should store all coords from 1 to result->depth[0].rows (image width)
+
+int patchmatch_iterations_;
+int patch_size_;
+double min_depth_, max_depth_;
+int num_depth_planes_;
 std::mt19937 rng_;
 std::uniform_int_distribution<int> uni_;
 float min_patch_variance_;

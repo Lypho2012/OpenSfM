@@ -37,7 +37,7 @@ void BsiDepthmapEstimator::InitializeViews(size_t num_images) {
 }
 void BsiDepthmapEstimator::AddView(const double *pK, const double *pR, const double *pt,
         const unsigned char *pimage, const unsigned char *pmask,
-        size_t width, size_t height, size_t num_images) {
+        size_t width, size_t height) {
     cv::Matx33d curK(pK);
     curK = curK.inv();
     cv::Matx33d curR(pR);
@@ -80,7 +80,7 @@ void BsiDepthmapEstimator::AddView(const double *pK, const double *pR, const dou
     uni_.param(std::uniform_int_distribution<int>::param_type(a, b));
 }
 
-void BsiDepthmapEstimator::ProcessViewsToBsi(size_t num_images) {
+void BsiDepthmapEstimator::ProcessViewsToBsi() {
     BsiSigned<uint64_t> bsi;
     for (size_t i=0; i<3; i++) {
         ts_bsi.emplace_back(bsi.buildBsiAttributeFromVector(ts_[i]));
@@ -92,8 +92,8 @@ void BsiDepthmapEstimator::ProcessViewsToBsi(size_t num_images) {
             Qs_bsi[i].emplace_back(bsi.buildBsiAttributeFromVector(Qs_[i][j]));
         }
     }
-    for (size_t i=0; i<num_images; i++) {
-        for (size_t j=0; j<images_[num_images].size(); j++) {
+    for (size_t i=0; i<images_.size(); i++) {
+        for (size_t j=0; j<images_[i].size(); j++) {
             images_bsi[i].emplace_back(bsi.buildBsiAttributeFromVector(images_[i][j],0.5));
         }
     }
@@ -105,6 +105,18 @@ void BsiDepthmapEstimator::SetDepthRange(double min_depth, double max_depth,
     max_depth_ = max_depth;
     num_depth_planes_ = num_depth_planes;
 }
+
+void BsiDepthmapEstimator::SetPatchMatchIterations(int n) {
+    patchmatch_iterations_ = n;
+}
+
+void BsiDepthmapEstimator::SetPatchSize(int size) {
+    patch_size_ = size;
+}
+
+void BsiDepthmapEstimator::SetMinPatchSD(float sd) {
+    min_patch_variance_ = sd * sd;
+  }
 
 /*std::vector<BsiAttribute<uint64_t>*> PlaneFromDepthAndNormal(int y,
                                                              const std::vector<std::vector<BsiAttribute<uint64_t>*>> &K,
