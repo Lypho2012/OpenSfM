@@ -34,6 +34,7 @@ void BsiDepthmapEstimator::InitializeViews(size_t num_images) {
         images_bsi.emplace_back(std::vector<BsiAttribute<uint64_t>*>());
     }
     front = true;
+    images_processed = 0;
 }
 void BsiDepthmapEstimator::AddView(const double *pK, const double *pR, const double *pt,
         const unsigned char *pimage, const unsigned char *pmask,
@@ -57,11 +58,12 @@ void BsiDepthmapEstimator::AddView(const double *pK, const double *pR, const dou
     }
     cv::Mat curimage(height, width, CV_8U, (void *)pimage);
     for (size_t i=0; i<height; i++) {
-        images_[i].emplace_back(std::vector<long>());
+        images_[images_processed].emplace_back(std::vector<long>());
         for (size_t j=0; j<width; j++) {
-            images_[i][j].emplace_back(curimage.at<uchar>(i,j));
+            images_[images_processed][i].emplace_back(curimage.at<uchar>(i,j));
         }
     }
+    images_processed ++;
     if (front) {
         cv::Mat curmask(height, width, CV_8U, (void *)pmask);
         for (size_t i=0; i<height; i++) {
@@ -69,12 +71,13 @@ void BsiDepthmapEstimator::AddView(const double *pK, const double *pR, const dou
             for (size_t j=0; j<width; j++) {
                 row.add(curmask.at<uchar>(i,j)-0);
             }
+            mask_.emplace_back(row);
         }
         front_R = curR;
         front_t = curt;
         front = false;
     }
-    std::size_t size = images_[0][0].size();
+    std::size_t size = images_processed;
     int a = (size > 1) ? 1 : 0;
     int b = (size > 1) ? size - 1 : 0;
     uni_.param(std::uniform_int_distribution<int>::param_type(a, b));
@@ -144,7 +147,7 @@ void BsiDepthmapEstimator::SetMinPatchSD(float sd) {
 
 void BsiDepthmapEstimator::AssignMatrices(BsiDepthmapEstimatorResult *result) {
     BsiSigned<uint64_t> bsi;
-    std::vector<long> vec(images_[0].size());
+    std::vector<long> vec(images_[0].size(),0);
 
     for (int row=0; row<images_[0].size(); row++) {
         // assign depth
@@ -257,17 +260,17 @@ void BsiDepthmapEstimator::AssignPixelRow(BsiDepthmapEstimatorResult *result, in
     delete prev_plane3;
 }
 
-void BsiDepthmapEstimator::ComputePatchMatch(BsiDepthmapEstimatorResult *result) {
+void BsiDepthmapEstimator::ComputePatchMatchSample(BsiDepthmapEstimatorResult *result) {
     AssignMatrices(result);
-    RandomInitialization(result, false);
-    ComputeIgnoreMask(result);
+    // RandomInitialization(result, true);
+    // ComputeIgnoreMask(result);
     
-    for (int i = 0; i < patchmatch_iterations_; ++i) {
-        PatchMatchForwardPass(result, false);
-        PatchMatchBackwardPass(result, false); // TODO
-    }
+    // for (int i = 0; i < patchmatch_iterations_; ++i) {
+    //     PatchMatchForwardPass(result, true);
+    //     PatchMatchBackwardPass(result, true); // TODO
+    // }
     
-    PostProcess(result);
+    // PostProcess(result);
 }
 
 void BsiDepthmapEstimator::PatchMatchForwardPass(BsiDepthmapEstimatorResult *result,

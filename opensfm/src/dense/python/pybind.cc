@@ -40,7 +40,9 @@ PYBIND11_MODULE(pydense, m) {
       .def("set_patch_size", &bsidense::BsiDepthmapEstimatorWrapper::SetPatchSize)
       .def("set_min_patch_sd", &bsidense::BsiDepthmapEstimatorWrapper::SetMinPatchSD)
       .def("initialize_views", &bsidense::BsiDepthmapEstimatorWrapper::InitializeViews)
-      .def("process_views", &bsidense::BsiDepthmapEstimatorWrapper::ProcessViews);
+      .def("process_views", &bsidense::BsiDepthmapEstimatorWrapper::ProcessViews)
+      .def("compute_patch_match_sample",
+           &bsidense::BsiDepthmapEstimatorWrapper::ComputePatchMatchSample);
 
   py::class_<dense::DepthmapCleanerWrapper>(m, "DepthmapCleaner")
       .def(py::init())

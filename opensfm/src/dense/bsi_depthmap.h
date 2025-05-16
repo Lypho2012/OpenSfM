@@ -56,7 +56,7 @@ void AssignMatrices(BsiDepthmapEstimatorResult *result);
 BsiAttribute<uint64_t>* BilateralWeight(BsiAttribute<uint64_t>* dcolor, float dx, float dy);
 void RandomInitialization(BsiDepthmapEstimatorResult *result, bool sample);
 void ComputeIgnoreMask(BsiDepthmapEstimatorResult *result);
-void ComputePatchMatch(BsiDepthmapEstimatorResult *result);
+void ComputePatchMatchSample(BsiDepthmapEstimatorResult *result);
 void PatchMatchForwardPass(BsiDepthmapEstimatorResult *result, bool sample);
 void PatchMatchBackwardPass(BsiDepthmapEstimatorResult *result, bool sample);
 void PostProcess(BsiDepthmapEstimatorResult *result);
@@ -109,6 +109,7 @@ std::vector<std::vector<double>> as_;
 cv::Matx33d front_R;
 cv::Vec3d front_t;
 bool front;
+int images_processed;
 };
 
 }

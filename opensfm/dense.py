@@ -48,7 +48,7 @@ def compute_depthmaps(
             continue
         mind, maxd = compute_depth_range(graph, reconstruction, shot, config)
         arguments.append((data, neighbors[shot.id], mind, maxd, shot))
-    parallel_map(compute_depthmap_catched, arguments, 1)
+    parallel_map(compute_depthmap_catched, arguments, 1) # TODO: replace 1 with processes
     #for arg in arguments:
     #    compute_depthmap_catched(arg)
 
@@ -128,6 +128,10 @@ def compute_depthmap(arguments):
     de.set_patch_size(data.config["depthmap_patch_size"])
     de.set_min_patch_sd(data.config["depthmap_min_patch_sd"])
     add_views_to_bsi_depth_estimator(data, neighbors, bde)
+    logger.info("add views to bsi depth estimator")
+
+    # bsi_depth, bsi_plane, bsi_score, bsi_nghbr = bde.compute_patch_match_sample()
+    # logger.info("Compute depthmap for bsi patch match sample")
 
     if method == "BRUTE_FORCE":
         depth, plane, score, nghbr = de.compute_brute_force()
@@ -140,6 +144,11 @@ def compute_depthmap(arguments):
             "Unknown depthmap method type "
             "(must be BRUTE_FORCE, PATCH_MATCH or PATCH_MATCH_SAMPLE)"
         )
+    
+    # assert bsi_depth == depth
+    # assert bsi_plane == plane
+    # assert bsi_score == score
+    # assert bsi_nghbr == nghbr
 
     logger.info("compute_patch_match_sample")
     good_score = score > data.config["depthmap_min_correlation_score"]
