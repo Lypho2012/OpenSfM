@@ -122,6 +122,9 @@ def compute_depthmap(arguments):
     logger.info("add_views_to_depth_estimator")
     #print(os.getpid())
 
+    bde = pydense.BsiDepthmapEstimator()
+    bde.set_depth_range(min_depth, max_depth, 100)
+
     if method == "BRUTE_FORCE":
         depth, plane, score, nghbr = de.compute_brute_force()
     elif method == "PATCH_MATCH":

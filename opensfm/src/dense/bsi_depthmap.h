@@ -44,39 +44,66 @@ BsiAttribute<uint64_t>* DepthOfPlaneBackprojection(int y,
 
 class BsiDepthmapEstimator {
 public:
-
+void AddView(const double *pK, const double *pR, const double *pt,
+    const unsigned char *pimage, const unsigned char *pmask,
+    int width, int height);
+void ProcessViews();
 BsiAttribute<uint64_t>* PatchVariance(int i);
-void AssignPixelRow(DepthmapEstimatorResult *result, int i,
+void AssignPixelRow(BsiDepthmapEstimatorResult *result, int i,
                  BsiAttribute<uint64_t>* depth, std::vector<BsiAttribute<uint64_t>*> &plane,
                  BsiAttribute<uint64_t>* score, BsiAttribute<uint64_t>* nghbr, const HybridBitmap<uint64_t> &mask);
-void AssignMatrices(DepthmapEstimatorResult *result);
+void AssignMatrices(BsiDepthmapEstimatorResult *result);
 BsiAttribute<uint64_t>* BilateralWeight(BsiAttribute<uint64_t>* dcolor, float dx, float dy);
-void RandomInitialization(DepthmapEstimatorResult *result, bool sample);
-void ComputeIgnoreMask(DepthmapEstimatorResult *result);
-void ComputePatchMatch(DepthmapEstimatorResult *result);
-void PatchMatchForwardPass(DepthmapEstimatorResult *result, bool sample);
-void PatchMatchBackwardPass(DepthmapEstimatorResult *result, bool sample);
-void PostProcess(DepthmapEstimatorResult *result);
+void RandomInitialization(BsiDepthmapEstimatorResult *result, bool sample);
+void ComputeIgnoreMask(BsiDepthmapEstimatorResult *result);
+void ComputePatchMatch(BsiDepthmapEstimatorResult *result);
+void PatchMatchForwardPass(BsiDepthmapEstimatorResult *result, bool sample);
+void PatchMatchBackwardPass(BsiDepthmapEstimatorResult *result, bool sample);
+void PostProcess(BsiDepthmapEstimatorResult *result);
 
-void PatchMatchUpdatePixelRow(DepthmapEstimatorResult *result, int i, int adjacent[2][2], bool sample);
-void CheckPlaneImageCandidate(DepthmapEstimatorResult *result, int i,
+void PatchMatchUpdatePixelRow(BsiDepthmapEstimatorResult *result, int i, int adjacent[2][2], bool sample);
+void CheckPlaneImageCandidate(BsiDepthmapEstimatorResult *result, int i,
                               std::vector<BsiAttribute<uint64_t>*> &plane, BsiAttribute<uint64_t>* nghbr);
 
 BsiAttribute<uint64_t>* ComputePlaneImageScore(int i,
                                                std::vector<BsiAttribute<uint64_t>*> &plane,
                                                BsiAttribute<uint64_t>* other);
 
+void InitializeViews(size_t num_images);
+void AddView(const double *pK, const double *pR, const double *pt,
+    const unsigned char *pimage, const unsigned char *pmask,
+    size_t width, size_t height, size_t num_images);
+void ProcessViewsToBsi(size_t num_images);
+void SetDepthRange(double min_depth, double max_depth, int num_depth_planes);
 
 private:
 int patchmatch_iterations_;
 int patch_size_;
-std::vector<std::vector<BsiAttribute<uint64_t>*>> images_;
+std::vector<std::vector<BsiAttribute<uint64_t>*>> images_bsi; // number of images x number of rows matrix
 std::vector<HybridBitmap<uint64_t>> mask_; // TODO: only need to store masks_[0]
+std::vector<std::vector<BsiAttribute<uint64_t>*>> Ks_bsi; // 3x3 matrix of BsiAttribute
+std::vector<std::vector<BsiAttribute<uint64_t>*>> Rs_bsi;
+std::vector<BsiAttribute<uint64_t>*> ts_bsi;
+std::vector<std::vector<BsiAttribute<uint64_t>*>> Kinvs_bsi;
+std::vector<std::vector<BsiAttribute<uint64_t>*>> Qs_bsi;
+std::vector<BsiAttribute<uint64_t>*> as_bsi;
 double min_depth_, max_depth_;
 BsiAttribute<uint64_t>* x; // TODO: should store all coords from 1 to result->depth[0].rows (image width)
-std::vector<std::vector<BsiAttribute<uint64_t>*>> Ks_;
 std::mt19937 rng_;
+std::uniform_int_distribution<int> uni_;
 float min_patch_variance_;
+
+std::vector<std::vector<std::vector<long>>> images_;
+std::vector<std::vector<std::vector<double>>> Ks_;
+std::vector<std::vector<std::vector<double>>> Rs_;
+std::vector<std::vector<double>> ts_;
+std::vector<std::vector<std::vector<double>>> Kinvs_;
+std::vector<std::vector<std::vector<double>>> Qs_;
+std::vector<std::vector<double>> as_;
+
+cv::Matx33d front_R;
+cv::Vec3d front_t;
+bool front;
 };
 
 }

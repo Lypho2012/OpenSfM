@@ -223,17 +223,15 @@ void DepthmapEstimator::ComputePatchMatch(DepthmapEstimatorResult *result) {
 void DepthmapEstimator::ComputePatchMatchSample(DepthmapEstimatorResult *result) {
   AssignMatrices(result);
 
-  bsidense::AssignMatrices(new BsiDepthmapEstimatorResult{});
+  // RandomInitialization(result, true);
+  // ComputeIgnoreMask(result);
 
-  /*RandomInitialization(result, true);
-  ComputeIgnoreMask(result);
+  // for (int i = 0; i < patchmatch_iterations_; ++i) {
+  //   PatchMatchForwardPass(result, true);
+  //   PatchMatchBackwardPass(result, true);
+  // }
 
-  for (int i = 0; i < patchmatch_iterations_; ++i) {
-    PatchMatchForwardPass(result, true);
-    PatchMatchBackwardPass(result, true);
-  }
-
-  PostProcess(result);*/
+  // PostProcess(result);
 }
 
 void DepthmapEstimator::AssignMatrices(DepthmapEstimatorResult *result) {

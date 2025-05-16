@@ -9,6 +9,103 @@
 #include <iostream>
 // TODO: implement remaining methods called from dense.py
 namespace bsidense {
+void BsiDepthmapEstimator::InitializeViews(size_t num_images) {
+    for (size_t i=0; i<3; i++) {
+        Ks_.emplace_back(std::vector<std::vector<double>>());
+        Rs_.emplace_back(std::vector<std::vector<double>>());
+        ts_.emplace_back(std::vector<double>());
+        Kinvs_.emplace_back(std::vector<std::vector<double>>());
+        Qs_.emplace_back(std::vector<std::vector<double>>());
+        as_.emplace_back(std::vector<double>());
+        
+        Ks_bsi.emplace_back(std::vector<BsiAttribute<uint64_t>*>());
+        Rs_bsi.emplace_back(std::vector<BsiAttribute<uint64_t>*>());
+        Kinvs_bsi.emplace_back(std::vector<BsiAttribute<uint64_t>*>());
+        Qs_bsi.emplace_back(std::vector<BsiAttribute<uint64_t>*>());
+        for (size_t j=0; j<3; j++) {
+            Ks_[i].emplace_back(std::vector<double>());
+            Rs_[i].emplace_back(std::vector<double>());
+            Kinvs_[i].emplace_back(std::vector<double>());
+            Qs_[i].emplace_back(std::vector<double>());
+        }
+    }
+    for (size_t i=0; i<num_images; i++) {
+        images_.emplace_back(std::vector<std::vector<long>>());
+        images_bsi.emplace_back(std::vector<BsiAttribute<uint64_t>*>());
+    }
+    front = true;
+}
+void BsiDepthmapEstimator::AddView(const double *pK, const double *pR, const double *pt,
+        const unsigned char *pimage, const unsigned char *pmask,
+        size_t width, size_t height, size_t num_images) {
+    cv::Matx33d curK(pK);
+    curK = curK.inv();
+    cv::Matx33d curR(pR);
+    cv::Vec3d curt(pt);
+    cv::Matx33d curQ(curR);
+    curQ = curQ * front_R.t();
+    cv::Vec3d cura = curQ * front_t - curt;
+    for (size_t i=0; i<3; i++) {
+        ts_[i].emplace_back(pt[i]);
+        as_[i].emplace_back(cura[i]);
+        for (size_t j=0; j<3; j++) {
+            Ks_[i][j].emplace_back(pK[3*i+j]);
+            Rs_[i][j].emplace_back(pR[3*i+j]);
+            Kinvs_[i][j].emplace_back(curK(i,j));
+            Qs_[i][j].emplace_back(curQ(i,j));
+        }
+    }
+    cv::Mat curimage(height, width, CV_8U, (void *)pimage);
+    for (size_t i=0; i<height; i++) {
+        images_[i].emplace_back(std::vector<long>());
+        for (size_t j=0; j<width; j++) {
+            images_[i][j].emplace_back(curimage.at<uchar>(i,j));
+        }
+    }
+    if (front) {
+        cv::Mat curmask(height, width, CV_8U, (void *)pmask);
+        for (size_t i=0; i<height; i++) {
+            HybridBitmap<uint64_t> row(width);
+            for (size_t j=0; j<width; j++) {
+                row.add(curmask.at<uchar>(i,j)-0);
+            }
+        }
+        front_R = curR;
+        front_t = curt;
+        front = false;
+    }
+    std::size_t size = images_[0][0].size();
+    int a = (size > 1) ? 1 : 0;
+    int b = (size > 1) ? size - 1 : 0;
+    uni_.param(std::uniform_int_distribution<int>::param_type(a, b));
+}
+
+void BsiDepthmapEstimator::ProcessViewsToBsi(size_t num_images) {
+    BsiSigned<uint64_t> bsi;
+    for (size_t i=0; i<3; i++) {
+        ts_bsi.emplace_back(bsi.buildBsiAttributeFromVector(ts_[i]));
+        as_bsi.emplace_back(bsi.buildBsiAttributeFromVector(as_[i]));
+        for (size_t j=0; j<3; j++) {
+            Ks_bsi[i].emplace_back(bsi.buildBsiAttributeFromVector(Ks_[i][j]));
+            Rs_bsi[i].emplace_back(bsi.buildBsiAttributeFromVector(Rs_[i][j]));
+            Kinvs_bsi[i].emplace_back(bsi.buildBsiAttributeFromVector(Kinvs_[i][j]));
+            Qs_bsi[i].emplace_back(bsi.buildBsiAttributeFromVector(Qs_[i][j]));
+        }
+    }
+    for (size_t i=0; i<num_images; i++) {
+        for (size_t j=0; j<images_[num_images].size(); j++) {
+            images_bsi[i].emplace_back(bsi.buildBsiAttributeFromVector(images_[i][j],0.5));
+        }
+    }
+}
+
+void BsiDepthmapEstimator::SetDepthRange(double min_depth, double max_depth,
+    int num_depth_planes) {
+    min_depth_ = min_depth;
+    max_depth_ = max_depth;
+    num_depth_planes_ = num_depth_planes;
+}
+
 /*std::vector<BsiAttribute<uint64_t>*> PlaneFromDepthAndNormal(int y,
                                                              const std::vector<std::vector<BsiAttribute<uint64_t>*>> &K,
                                                              BsiAttribute<uint64_t>* depth,
@@ -56,8 +153,8 @@ void BsiDepthmapEstimator::AssignMatrices(BsiDepthmapEstimatorResult *result) {
     }
 }
 
-/*void BsiDepthmapEstimator::RandomInitialization(BsiDepthmapEstimatorResult *result, bool sample) {
-    int hpz = (patch_size_ - 1) / 2;
+void BsiDepthmapEstimator::RandomInitialization(BsiDepthmapEstimatorResult *result, bool sample) {}
+/*    int hpz = (patch_size_ - 1) / 2;
     BsiSigned<uint64_t> bsi;
     std::vector<long> normal_z(result->depth[0]->rows, -1);
 
@@ -93,8 +190,8 @@ void BsiDepthmapEstimator::AssignMatrices(BsiDepthmapEstimatorResult *result) {
     }
 }*/
 
-/*void BsiDepthmapEstimator::ComputeIgnoreMask(BsiDepthmapEstimatorResult *result) {
-    int hpz = (patch_size_ - 1) / 2;
+void BsiDepthmapEstimator::ComputeIgnoreMask(BsiDepthmapEstimatorResult *result) {}
+/*    int hpz = (patch_size_ - 1) / 2;
     for (int i = hpz; i < result->depth.size() - hpz; ++i) {
         // masked represents a vector of 1's and 0's, where 0 means not masked
         HybridBitmap<uint64_t> masked = mask_[i];
@@ -107,11 +204,11 @@ void BsiDepthmapEstimator::AssignMatrices(BsiDepthmapEstimatorResult *result) {
 }*/
 
 BsiAttribute<uint64_t>* BsiDepthmapEstimator::PatchVariance(int i) {
-    BsiAttribute<uint64_t>* patch_sum = images_[0].at(i);
+    BsiAttribute<uint64_t>* patch_sum = images_bsi[0].at(i);
     int hpz = (patch_size_ - 1) / 2;
     for (int u = -hpz; u <= hpz; ++u) {
         for (int v = -hpz; v <= hpz; ++v) {
-            patch_sum = (*patch_sum) + images_[0].at(i + u)->shift(v);
+            patch_sum = (*patch_sum) + images_bsi[0].at(i + u)->shift(v);
         }
     }
     
@@ -170,10 +267,13 @@ void BsiDepthmapEstimator::PatchMatchForwardPass(BsiDepthmapEstimatorResult *res
     }
 }
 
-/*void BsiDepthmapEstimator::PatchMatchUpdatePixelRow(BsiDepthmapEstimatorResult *result,
+void BsiDepthmapEstimator::PatchMatchBackwardPass(BsiDepthmapEstimatorResult *result,
+    bool sample) {}
+
+void BsiDepthmapEstimator::PatchMatchUpdatePixelRow(BsiDepthmapEstimatorResult *result,
                                               int i, int adjacent[2][2],
-                                              bool sample) {
-    // Ignore pixels with depth == 0.
+                                              bool sample) {}
+/*    // Ignore pixels with depth == 0.
     // TODO: mask convolution at the end with relu
     HybridBitmap<uint64_t> mask = result->depth.at(i)->reLU(0).Not();
 
@@ -398,8 +498,8 @@ BsiNCCEstimator::BsiNCCEstimator()
     }
 }*/
 
-/*void BsiDepthmapEstimator::PostProcess(BsiDepthmapEstimatorResult *result) {
-    std::vector<BsiAttribute<uint64_t>*> depth_filtered;
+void BsiDepthmapEstimator::PostProcess(BsiDepthmapEstimatorResult *result) {}
+/*    std::vector<BsiAttribute<uint64_t>*> depth_filtered;
     cv::medianBlur(result->depth, depth_filtered, 5); // TODO: convolution - take median of kernel size 5
 
     for (int i = 0; i < result->depth.size(); ++i) {

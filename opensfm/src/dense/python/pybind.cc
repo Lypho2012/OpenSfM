@@ -29,6 +29,12 @@ PYBIND11_MODULE(pydense, m) {
       .def("compute_brute_force",
            &dense::DepthmapEstimatorWrapper::ComputeBruteForce);
 
+  py::class_<bsidense::BsiDepthmapEstimatorWrapper>(m, "BsiDepthmapEstimator")
+      .def(py::init())
+      .def("set_depth_range", &bsidense::BsiDepthmapEstimatorWrapper::SetDepthRange)
+      .def("add_view",
+           &bsidense::BsiDepthmapEstimatorWrapper::AddView);
+
   py::class_<dense::DepthmapCleanerWrapper>(m, "DepthmapCleaner")
       .def(py::init())
       .def("set_same_depth_threshold",
