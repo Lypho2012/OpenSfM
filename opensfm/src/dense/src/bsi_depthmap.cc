@@ -86,18 +86,18 @@ void BsiDepthmapEstimator::AddView(const double *pK, const double *pR, const dou
 void BsiDepthmapEstimator::ProcessViewsToBsi() {
     BsiSigned<uint64_t> bsi;
     for (size_t i=0; i<3; i++) {
-        ts_bsi.emplace_back(bsi.buildBsiAttributeFromVector(ts_[i]));
-        as_bsi.emplace_back(bsi.buildBsiAttributeFromVector(as_[i]));
+        ts_bsi.emplace_back(bsi.buildBsiAttributeFromVectorSigned(ts_[i]));
+        as_bsi.emplace_back(bsi.buildBsiAttributeFromVectorSigned(as_[i]));
         for (size_t j=0; j<3; j++) {
-            Ks_bsi[i].emplace_back(bsi.buildBsiAttributeFromVector(Ks_[i][j]));
-            Rs_bsi[i].emplace_back(bsi.buildBsiAttributeFromVector(Rs_[i][j]));
-            Kinvs_bsi[i].emplace_back(bsi.buildBsiAttributeFromVector(Kinvs_[i][j]));
-            Qs_bsi[i].emplace_back(bsi.buildBsiAttributeFromVector(Qs_[i][j]));
+            Ks_bsi[i].emplace_back(bsi.buildBsiAttributeFromVectorSigned(Ks_[i][j]));
+            Rs_bsi[i].emplace_back(bsi.buildBsiAttributeFromVectorSigned(Rs_[i][j]));
+            Kinvs_bsi[i].emplace_back(bsi.buildBsiAttributeFromVectorSigned(Kinvs_[i][j]));
+            Qs_bsi[i].emplace_back(bsi.buildBsiAttributeFromVectorSigned(Qs_[i][j]));
         }
     }
     for (size_t i=0; i<images_.size(); i++) {
         for (size_t j=0; j<images_[i].size(); j++) {
-            images_bsi[i].emplace_back(bsi.buildBsiAttributeFromVector(images_[i][j],0.5));
+            images_bsi[i].emplace_back(bsi.buildBsiAttributeFromVectorSigned(images_[i][j],0.5));
         }
     }
 }
@@ -147,7 +147,7 @@ void BsiDepthmapEstimator::SetMinPatchSD(float sd) {
 
 void BsiDepthmapEstimator::AssignMatrices(BsiDepthmapEstimatorResult *result) {
     BsiSigned<uint64_t> bsi;
-    std::vector<long> vec(images_[0].size(),0);
+    std::vector<long> vec(images_[0][0].size(),0);
 
     for (int row=0; row<images_[0].size(); row++) {
         // assign depth

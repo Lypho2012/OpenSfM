@@ -48,43 +48,68 @@ class BsiDepthmapEstimatorWrapper {
 
   py::object ComputeReturnValues(const BsiDepthmapEstimatorResult &result) {
     py::list retn;
+    py::array_t<long> depth({static_cast<size_t>(result.depth.size()),static_cast<size_t>(result.depth[0]->rows)});
+    py::array_t<long> plane({static_cast<size_t>(result.plane.size()),static_cast<size_t>(result.plane[0][0]->rows),static_cast<size_t>(3)});
+    py::array_t<long> score({static_cast<size_t>(result.score.size()),static_cast<size_t>(result.score[0]->rows)});
+    py::array_t<long> nghbr({static_cast<size_t>(result.nghbr.size()),static_cast<size_t>(result.nghbr[0]->rows)});
 
-    cv::Mat depth = cv::Mat(result.depth.size(), result.depth[0]->rows, CV_32F, 0.0f);
-    cv::Mat plane = cv::Mat(result.plane.size(), result.plane[0][0]->rows, CV_32FC3, 0.0f);
-    cv::Mat score = cv::Mat(result.score.size(), result.score[0]->rows, CV_32F, 0.0f);
-    cv::Mat nghbr = cv::Mat(result.nghbr.size(), result.nghbr[0]->rows, CV_32S, cv::Scalar(0));
+    // cv::Mat depth = cv::Mat(result.depth.size(), result.depth[0]->rows, CV_32F, 0.0f);
+    // cv::Mat plane = cv::Mat(result.plane.size(), result.plane[0][0]->rows, CV_32FC3, 0.0f);
+    // cv::Mat score = cv::Mat(result.score.size(), result.score[0]->rows, CV_32F, 0.0f);
+    // cv::Mat nghbr = cv::Mat(result.nghbr.size(), result.nghbr[0]->rows, CV_32S, cv::Scalar(0));
 
     for (int i=0; i<result.depth.size(); i++) {
         for (int j=0; j<result.depth[i]->rows; j++) {
-            depth.at<float>(i,j) = result.depth[i]->getValue(j);
+            depth.mutable_at(i,j) = result.depth[i]->getValue(j);
         }
     }
     for (int i=0; i<result.plane.size(); i++) {
         for (int k=0; k<3; k++) {
             for (int j=0; j<result.plane[i][k]->rows; j++) {
-                plane.at<float>(i,j,k) = result.plane[i][k]->getValue(j);
+                plane.mutable_at(i,j,k) = result.plane[i][k]->getValue(j);
             }
         }
     }
     for (int i=0; i<result.score.size(); i++) {
         for (int j=0; j<result.score[i]->rows; j++) {
-            score.at<float>(i,j) = result.score[i]->getValue(j);
+            score.mutable_at(i,j) = result.score[i]->getValue(j);
         }
     }
     for (int i=0; i<result.nghbr.size(); i++) {
         for (int j=0; j<result.nghbr[i]->rows; j++) {
-            nghbr.at<int>(i,j) = result.nghbr[i]->getValue(j);
+            nghbr.mutable_at(i,j) = result.nghbr[i]->getValue(j);
         }
     }
+    // for (int i=0; i<result.plane.size(); i++) {
+    //     for (int k=0; k<3; k++) {
+    //         for (int j=0; j<result.plane[i][k]->rows; j++) {
+    //             plane.at<float>(i,j,k) = result.plane[i][k]->getValue(j);
+    //         }
+    //     }
+    // }
+    // for (int i=0; i<result.score.size(); i++) {
+    //     for (int j=0; j<result.score[i]->rows; j++) {
+    //         score.at<float>(i,j) = result.score[i]->getValue(j);
+    //     }
+    // }
+    // for (int i=0; i<result.nghbr.size(); i++) {
+    //     for (int j=0; j<result.nghbr[i]->rows; j++) {
+    //         nghbr.at<int>(i,j) = result.nghbr[i]->getValue(j);
+    //     }
+    // }
 
-    retn.append(py_array_from_data(depth.ptr<float>(0),
-                                   depth.rows, depth.cols));
-    retn.append(py_array_from_data(plane.ptr<float>(0),
-                                   plane.rows, plane.cols, 3));
-    retn.append(py_array_from_data(score.ptr<float>(0),
-                                   score.rows, score.cols));
-    retn.append(py_array_from_data(nghbr.ptr<int>(0), nghbr.rows,
-                                   nghbr.cols));
+    // retn.append(py_array_from_data(depth.ptr<float>(0),
+    //                                depth.rows, depth.cols));
+    // retn.append(py_array_from_data(plane.ptr<float>(0),
+    //                                plane.rows, plane.cols, 3));
+    // retn.append(py_array_from_data(score.ptr<float>(0),
+    //                                score.rows, score.cols));
+    // retn.append(py_array_from_data(nghbr.ptr<int>(0), nghbr.rows,
+    //                                nghbr.cols));
+    retn.append(depth);
+    retn.append(plane);
+    retn.append(score);
+    retn.append(nghbr);
     return std::move(retn);
   }
 

@@ -130,8 +130,8 @@ def compute_depthmap(arguments):
     add_views_to_bsi_depth_estimator(data, neighbors, bde)
     logger.info("add views to bsi depth estimator")
 
-    # bsi_depth, bsi_plane, bsi_score, bsi_nghbr = bde.compute_patch_match_sample()
-    # logger.info("Compute depthmap for bsi patch match sample")
+    bsi_depth, bsi_plane, bsi_score, bsi_nghbr = bde.compute_patch_match_sample()
+    logger.info("Compute depthmap for bsi patch match sample")
 
     if method == "BRUTE_FORCE":
         depth, plane, score, nghbr = de.compute_brute_force()
@@ -145,10 +145,19 @@ def compute_depthmap(arguments):
             "(must be BRUTE_FORCE, PATCH_MATCH or PATCH_MATCH_SAMPLE)"
         )
     
-    # assert bsi_depth == depth
-    # assert bsi_plane == plane
-    # assert bsi_score == score
-    # assert bsi_nghbr == nghbr
+    for row1,row2 in zip(bsi_depth,depth):
+        for el1,el2 in zip(row1,row2):
+            assert el1 == el2
+    for row1,row2 in zip(bsi_plane,plane):
+        for el1,el2 in zip(row1,row2):
+            for x1, x2 in zip(el1,el2):
+                assert x1 == x2
+    for row1,row2 in zip(bsi_score,score):
+            for el1,el2 in zip(row1,row2):
+                assert el1 == el2
+    for row1,row2 in zip(bsi_nghbr,nghbr):
+        for el1,el2 in zip(row1,row2):
+            assert el1 == el2
 
     logger.info("compute_patch_match_sample")
     good_score = score > data.config["depthmap_min_correlation_score"]
