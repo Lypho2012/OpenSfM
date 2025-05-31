@@ -9,6 +9,58 @@
 #include <iostream>
 // TODO: implement remaining methods called from dense.py
 namespace bsidense {
+BsiDepthmapEstimatorResult::~BsiDepthmapEstimatorResult() {
+    for (BsiAttribute<uint64_t>* el: depth) {
+        delete el;
+    }
+    for (BsiAttribute<uint64_t>* el: score) {
+        delete el;
+    }
+    for (BsiAttribute<uint64_t>* el: nghbr) {
+        delete el;
+    }
+    for (std::vector<BsiAttribute<uint64_t>*> row: plane) {
+        for (BsiAttribute<uint64_t>* el: row) {
+            delete el;
+        }
+    }
+}
+
+BsiDepthmapEstimator::~BsiDepthmapEstimator() {
+    for (std::vector<BsiAttribute<uint64_t>*> image: images_bsi) {
+        for (BsiAttribute<uint64_t>* el: image) {
+            delete el;
+        }
+    }
+    for (std::vector<BsiAttribute<uint64_t>*> row: Ks_bsi) {
+        for (BsiAttribute<uint64_t>* el: row) {
+            delete el;
+        }
+    }
+    for (std::vector<BsiAttribute<uint64_t>*> row: Rs_bsi) {
+        for (BsiAttribute<uint64_t>* el: row) {
+            delete el;
+        }
+    }
+    for (BsiAttribute<uint64_t>* el: ts_bsi) {
+        delete el;
+    }
+    for (std::vector<BsiAttribute<uint64_t>*> row: Kinvs_bsi) {
+        for (BsiAttribute<uint64_t>* el: row) {
+            delete el;
+        }
+    }
+    for (std::vector<BsiAttribute<uint64_t>*> row: Qs_bsi) {
+        for (BsiAttribute<uint64_t>* el: row) {
+            delete el;
+        }
+    }
+    for (BsiAttribute<uint64_t>* el: as_bsi) {
+        delete el;
+    }
+    delete x;
+}
+
 void BsiDepthmapEstimator::InitializeViews(size_t num_images) {
     for (size_t i=0; i<3; i++) {
         Ks_.emplace_back(std::vector<std::vector<double>>());
@@ -481,6 +533,15 @@ void BsiDepthmapEstimator::PatchMatchUpdatePixelRow(BsiDepthmapEstimatorResult *
 
 BsiNCCEstimator::BsiNCCEstimator()
         : sumx_(0), sumy_(0), sumxx_(0), sumyy_(0), sumxy_(0), sumw_(0) {} // TODO: initializer list with empty bsi
+
+BsiNCCEstimator::~BsiNCCEstimator() {
+    delete sumx_;
+    delete sumy_;
+    delete sumxx_;
+    delete sumxy_;
+    delete sumyy_;
+    delete sumw_;
+}
 
 /*void BsiNCCEstimator::Push(BsiAttribute<uint64_t>* x, BsiAttribute<uint64_t>* y, BsiAttribute<uint64_t>* w) {
     sumx_ += w * x;

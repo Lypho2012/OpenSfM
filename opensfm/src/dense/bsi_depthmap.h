@@ -9,6 +9,7 @@ namespace bsidense {
 class BsiNCCEstimator {
 public:
     BsiNCCEstimator();
+    ~BsiNCCEstimator();
     void Push(BsiAttribute<uint64_t>* x, BsiAttribute<uint64_t>* y, BsiAttribute<uint64_t>* w);
     BsiAttribute<uint64_t>* Get();
 
@@ -32,10 +33,12 @@ std::vector<BsiAttribute<uint64_t>*> PlaneFromDepthAndNormal(int y, const std::v
 
 struct BsiDepthmapEstimatorResult {
     std::vector<BsiAttribute<uint64_t>*> depth; // float
-    std::vector<std::vector<BsiAttribute<uint64_t>*>> plane;  // float
+    std::vector<std::vector<BsiAttribute<uint64_t>*>> plane;  // float rows x 3
     // TODO: consider making a plane object instead of using std::vector<BsiAttribute<uint64_t>*> since the vector only has 3 elements
     std::vector<BsiAttribute<uint64_t>*> score;  // float
     std::vector<BsiAttribute<uint64_t>*> nghbr;  // int
+
+    ~BsiDepthmapEstimatorResult();
 };
 
 BsiAttribute<uint64_t>* DepthOfPlaneBackprojection(int y,
@@ -44,6 +47,7 @@ BsiAttribute<uint64_t>* DepthOfPlaneBackprojection(int y,
 
 class BsiDepthmapEstimator {
 public:
+~BsiDepthmapEstimator();
 void AddView(const double *pK, const double *pR, const double *pt,
     const unsigned char *pimage, const unsigned char *pmask,
     int width, int height);
