@@ -174,7 +174,7 @@ void BsiDepthmapEstimator::SetMinPatchSD(float sd) {
   }
 
 /*std::vector<BsiAttribute<uint64_t>*> PlaneFromDepthAndNormal(int y,
-                                                             const std::vector<std::vector<BsiAttribute<uint64_t>*>> &K,
+                                                             const std::vector<std::vector<BsiAttribute<uint64_t>*>> &Kinvs_,
                                                              BsiAttribute<uint64_t>* depth,
                                                              const std::vector<BsiAttribute<uint64_t>*> &normal) {
     // TODO: implement inverse and store it for use later or use K_inv, replace multiplication operations with matrix mult
@@ -186,7 +186,7 @@ void BsiDepthmapEstimator::SetMinPatchSD(float sd) {
     homogeneous_coord.push_back(y);
     homogeneous_coord.push_back(bsi.buildBsiAttributeFromVectorSigned(ones,0.5));
     std::vector<BsiAttribute<uint64_t>*> point;
-    std::vector<BsiAttribute<uint64_t>*> point = depth * inverse(K) * homogeneous_coord;
+    std::vector<BsiAttribute<uint64_t>*> point = depth * Kinvs_ * homogeneous_coord;
 
     // TODO: replace dot, relu
     std::vector<BsiAttribute<uint64_t>*> res;
@@ -220,42 +220,50 @@ void BsiDepthmapEstimator::AssignMatrices(BsiDepthmapEstimatorResult *result) {
     }
 }
 
-void BsiDepthmapEstimator::RandomInitialization(BsiDepthmapEstimatorResult *result, bool sample) {}
-/*    int hpz = (patch_size_ - 1) / 2;
+// TODO:
+BsiAttribute<uint64_t>* BsiDepthmapEstimator::UniformRand(double low, double high, int size) {}
+
+// TODO:
+BsiAttribute<uint64_t>* BsiDepthmapEstimator::exp(BsiAttribute<uint64_t>* bsi) {}
+
+void BsiDepthmapEstimator::RandomInitialization(BsiDepthmapEstimatorResult *result, bool sample) {
+    int hpz = (patch_size_ - 1) / 2;
     BsiSigned<uint64_t> bsi;
     std::vector<long> normal_z(result->depth[0]->rows, -1);
 
     for (int i = hpz; i < result->depth.size() - hpz; ++i) {
-        // TODO: substitute UniformRand, uni_, rng_, and exp for bsi functions
         // initialize depth
-        BsiAttribute<uint64_t>* depth = exp(UniformRand(log(min_depth_), log(max_depth_)));
+        BsiAttribute<uint64_t>* depth = exp(UniformRand(log(min_depth_), log(max_depth_), result->depth[0]->rows));
         result->depth.push_back(depth);
 
         // generate normal
         std::vector<BsiAttribute<uint64_t>*> normal;
-        normal.push_back(UniformRand(-1, 1));
-        normal.push_back(UniformRand(-1, 1));
+        normal.push_back(UniformRand(-1, 1, result->depth[0]->rows));
+        normal.push_back(UniformRand(-1, 1, result->depth[0]->rows));
         normal.push_back(bsi.buildBsiAttributeFromVectorSigned(normal_z,0.5));
 
         // initialize plane
-        std::vector<BsiAttribute<uint64_t>*> plane = PlaneFromDepthAndNormal(i, Ks_[0], depth, normal);
+        std::vector<BsiAttribute<uint64_t>*> plane = PlaneFromDepthAndNormal(i, Kinvs_bsi, depth, normal);
         result->plane.push_back(plane);
 
         // initialize nghbr and score
         BsiAttribute<uint64_t>* nghbr;
         BsiAttribute<uint64_t>* score;
         if (sample) {
-            // TODO: uncomment when uni is implemented
-            // nghbr = uni_(rng_);
-            score = ComputePlaneImageScore(i, j, plane, nghbr);
+            nghbr = UniformRand(0,images_bsi.size(),result->depth[0]->rows);
+            score = ComputePlaneImageScore(i, plane, nghbr);
         } else {
             // TODO: don't implement for now, focus on compute patch match sample
 //            ComputePlaneScore(i, plane, &score, &nghbr);
         }
         result->nghbr.push_back(nghbr);
         result->score.push_back(score);
+
+        delete normal[0];
+        delete normal[1];
+        delete normal[2];
     }
-}*/
+}
 
 void BsiDepthmapEstimator::ComputeIgnoreMask(BsiDepthmapEstimatorResult *result) {}
 /*    int hpz = (patch_size_ - 1) / 2;
@@ -314,7 +322,7 @@ void BsiDepthmapEstimator::AssignPixelRow(BsiDepthmapEstimatorResult *result, in
 
 void BsiDepthmapEstimator::ComputePatchMatchSample(BsiDepthmapEstimatorResult *result) {
     AssignMatrices(result);
-    // RandomInitialization(result, true);
+    RandomInitialization(result, true);
     // ComputeIgnoreMask(result);
     
     // for (int i = 0; i < patchmatch_iterations_; ++i) {

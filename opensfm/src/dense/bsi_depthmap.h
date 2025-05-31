@@ -83,6 +83,9 @@ void SetPatchMatchIterations(int n);
 void SetPatchSize(int size);
 void SetMinPatchSD(float sd);
 
+BsiAttribute<uint64_t>* UniformRand(double low, double high, int size);
+BsiAttribute<uint64_t>* exp(BsiAttribute<uint64_t>* bsi);
+
 private:
 std::vector<std::vector<BsiAttribute<uint64_t>*>> images_bsi; // number of images x number of rows matrix
 std::vector<HybridBitmap<uint64_t>> mask_; // TODO: only need to store masks_[0]
