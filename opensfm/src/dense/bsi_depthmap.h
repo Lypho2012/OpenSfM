@@ -28,9 +28,6 @@ std::vector<std::vector<BsiAttribute<uint64_t>*>> PlaneInducedHomographyBaked(co
                                                                               const std::vector<std::vector<BsiAttribute<uint64_t>*>> &K2,
                                                                               const std::vector<BsiAttribute<uint64_t>*> &v);
 
-std::vector<BsiAttribute<uint64_t>*> PlaneFromDepthAndNormal(int y, const std::vector<std::vector<BsiAttribute<uint64_t>*>> &K,
-                                                                BsiAttribute<uint64_t>* depth, const std::vector<BsiAttribute<uint64_t>*> &normal);
-
 struct BsiDepthmapEstimatorResult {
     std::vector<BsiAttribute<uint64_t>*> depth; // float
     std::vector<std::vector<BsiAttribute<uint64_t>*>> plane;  // float rows x 3
@@ -86,6 +83,9 @@ void SetMinPatchSD(float sd);
 BsiAttribute<uint64_t>* UniformRand(double low, double high, int size);
 BsiAttribute<uint64_t>* exp(BsiAttribute<uint64_t>* bsi);
 
+std::vector<BsiAttribute<uint64_t>*> PlaneFromDepthAndNormal(int y,
+    BsiAttribute<uint64_t>* depth, const std::vector<BsiAttribute<uint64_t>*> &normal);
+
 private:
 std::vector<std::vector<BsiAttribute<uint64_t>*>> images_bsi; // number of images x number of rows matrix
 std::vector<HybridBitmap<uint64_t>> mask_; // TODO: only need to store masks_[0]
@@ -96,6 +96,8 @@ std::vector<std::vector<BsiAttribute<uint64_t>*>> Kinvs_bsi;
 std::vector<std::vector<BsiAttribute<uint64_t>*>> Qs_bsi;
 std::vector<BsiAttribute<uint64_t>*> as_bsi;
 BsiAttribute<uint64_t>* x; // TODO: should store all coords from 1 to result->depth[0].rows (image width)
+
+std::vector<BsiAttribute<uint64_t>*> rays_bsi; // 3 x width (depth * K.inv() * cv::Vec3d(x, 0, 1)), to be used in PlaneFromDepthAndNormal after adding y
 
 int patchmatch_iterations_;
 int patch_size_;
@@ -113,6 +115,7 @@ std::vector<std::vector<std::vector<double>>> Kinvs_;
 std::vector<std::vector<std::vector<double>>> Qs_;
 std::vector<std::vector<double>> as_;
 
+cv::Matx33d front_Kinvs;
 cv::Matx33d front_R;
 cv::Vec3d front_t;
 bool front;

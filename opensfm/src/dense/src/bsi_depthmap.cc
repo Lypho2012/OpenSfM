@@ -59,6 +59,9 @@ BsiDepthmapEstimator::~BsiDepthmapEstimator() {
         delete el;
     }
     delete x;
+    for (BsiAttribute<uint64_t>* el: rays_bsi) {
+        delete el;
+    }
 }
 
 void BsiDepthmapEstimator::InitializeViews(size_t num_images) {
@@ -91,8 +94,8 @@ void BsiDepthmapEstimator::InitializeViews(size_t num_images) {
 void BsiDepthmapEstimator::AddView(const double *pK, const double *pR, const double *pt,
         const unsigned char *pimage, const unsigned char *pmask,
         size_t width, size_t height) {
-    cv::Matx33d curK(pK);
-    curK = curK.inv();
+    cv::Matx33d curKinvs(pK);
+    curKinvs = curKinvs.inv();
     cv::Matx33d curR(pR);
     cv::Vec3d curt(pt);
     cv::Matx33d curQ(curR);
@@ -104,7 +107,7 @@ void BsiDepthmapEstimator::AddView(const double *pK, const double *pR, const dou
         for (size_t j=0; j<3; j++) {
             Ks_[i][j].emplace_back(pK[3*i+j]);
             Rs_[i][j].emplace_back(pR[3*i+j]);
-            Kinvs_[i][j].emplace_back(curK(i,j));
+            Kinvs_[i][j].emplace_back(curKinvs(i,j));
             Qs_[i][j].emplace_back(curQ(i,j));
         }
     }
@@ -127,6 +130,7 @@ void BsiDepthmapEstimator::AddView(const double *pK, const double *pR, const dou
         }
         front_R = curR;
         front_t = curt;
+        front_Kinvs = curKinvs;
         front = false;
     }
     std::size_t size = images_processed;
@@ -173,29 +177,24 @@ void BsiDepthmapEstimator::SetMinPatchSD(float sd) {
     min_patch_variance_ = sd * sd;
   }
 
-/*std::vector<BsiAttribute<uint64_t>*> PlaneFromDepthAndNormal(int y,
-                                                             const std::vector<std::vector<BsiAttribute<uint64_t>*>> &Kinvs_,
+std::vector<BsiAttribute<uint64_t>*> BsiDepthmapEstimator::PlaneFromDepthAndNormal(int y,
                                                              BsiAttribute<uint64_t>* depth,
                                                              const std::vector<BsiAttribute<uint64_t>*> &normal) {
-    // TODO: implement inverse and store it for use later or use K_inv, replace multiplication operations with matrix mult
-    std::vector<BsiAttribute<uint64_t>*> homogeneous_coord;
-    BsiSigned<uint64_t> bsi;
-    std::vector<long> ones(y->rows, 1);
-    BsiAttribute<uint64_t>* x; // TODO: should store all coords from 1 to result->depth[0]->rows (image width)
-    homogeneous_coord.push_back(x);
-    homogeneous_coord.push_back(y);
-    homogeneous_coord.push_back(bsi.buildBsiAttributeFromVectorSigned(ones,0.5));
     std::vector<BsiAttribute<uint64_t>*> point;
-    std::vector<BsiAttribute<uint64_t>*> point = depth * Kinvs_ * homogeneous_coord;
+    point.push_back(point[0]->SUM(y*front_Kinvs(0,1))->multiplyWithBsiHorizontal(depth));
+    point.push_back(point[1]->SUM(y*front_Kinvs(1,1))->multiplyWithBsiHorizontal(depth));
+    point.push_back(point[2]->SUM(y*front_Kinvs(2,1))->multiplyWithBsiHorizontal(depth));
 
-    // TODO: replace dot, relu
     std::vector<BsiAttribute<uint64_t>*> res;
     for (int i=0; i<normal.size(); i++) {
-        BsiAttribute<uint64_t>* denom = -normal[i].dot(point[i]);
-        res.push_back(normal / std::max(1e-6f, denom));
+        BsiAttribute<uint64_t>* denom = normal.at(i)->multiplyByConstant(-1)->multiplyWithBsiHorizontal(point[i]);
+        res.push_back(normal.at(i)); // TODO: divide normal.at(i) by denom
     }
+    delete point[0];
+    delete point[1];
+    delete point[2];
     return res;
-}*/
+}
 
 void BsiDepthmapEstimator::AssignMatrices(BsiDepthmapEstimatorResult *result) {
     BsiSigned<uint64_t> bsi;
@@ -218,6 +217,16 @@ void BsiDepthmapEstimator::AssignMatrices(BsiDepthmapEstimatorResult *result) {
         // assign nghbr
         result->nghbr.push_back(bsi.buildBsiAttributeFromVectorSigned(vec,0.5));
     }
+
+    std::vector<long> x_coord;
+    for (int i=0; i<images_.size(); i++) {
+        x_coord.push_back(i);
+    }
+    x = bsi.buildBsiAttributeFromVector(x_coord,0.5);
+
+    rays_bsi[0] = x->multiplyByConstant(front_Kinvs(0,0))->SUM(front_Kinvs(0,2));
+    rays_bsi[1] = x->multiplyByConstant(front_Kinvs(1,0))->SUM(front_Kinvs(1,2));
+    rays_bsi[2] = x->multiplyByConstant(front_Kinvs(2,0))->SUM(front_Kinvs(2,2));
 }
 
 // TODO:
@@ -243,7 +252,7 @@ void BsiDepthmapEstimator::RandomInitialization(BsiDepthmapEstimatorResult *resu
         normal.push_back(bsi.buildBsiAttributeFromVectorSigned(normal_z,0.5));
 
         // initialize plane
-        std::vector<BsiAttribute<uint64_t>*> plane = PlaneFromDepthAndNormal(i, Kinvs_bsi, depth, normal);
+        std::vector<BsiAttribute<uint64_t>*> plane = PlaneFromDepthAndNormal(i, depth, normal);
         result->plane.push_back(plane);
 
         // initialize nghbr and score
