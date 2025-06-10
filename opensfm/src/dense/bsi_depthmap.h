@@ -67,7 +67,7 @@ void CheckPlaneImageCandidate(BsiDepthmapEstimatorResult *result, int i,
                               std::vector<BsiAttribute<uint64_t>*> &plane, BsiAttribute<uint64_t>* nghbr);
 
 BsiAttribute<uint64_t>* ComputePlaneImageScore(int i,
-                                               std::vector<BsiAttribute<uint64_t>*> &plane,
+                                               const std::vector<BsiAttribute<uint64_t>*> &plane,
                                                BsiAttribute<uint64_t>* other);
 
 void InitializeViews(size_t num_images);
