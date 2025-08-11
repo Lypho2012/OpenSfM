@@ -58,10 +58,6 @@ BsiDepthmapEstimator::~BsiDepthmapEstimator() {
     for (BsiAttribute<uint64_t>* el: as_bsi) {
         delete el;
     }
-    delete x;
-    for (BsiAttribute<uint64_t>* el: rays_bsi) {
-        delete el;
-    }
 }
 
 void BsiDepthmapEstimator::InitializeViews(size_t num_images) {
@@ -179,21 +175,28 @@ void BsiDepthmapEstimator::SetMinPatchSD(float sd) {
 
 std::vector<BsiAttribute<uint64_t>*> BsiDepthmapEstimator::PlaneFromDepthAndNormal(int y,
                                                              BsiAttribute<uint64_t>* depth,
-                                                             const std::vector<BsiAttribute<uint64_t>*> &normal) {
-    // std::vector<BsiAttribute<uint64_t>*> point;
-    // point.push_back(rays_bsi[0]->SUM(y*front_Kinvs(0,1))->multiplyWithBsiHorizontal(depth));
-    // point.push_back(rays_bsi[1]->SUM(y*front_Kinvs(1,1))->multiplyWithBsiHorizontal(depth));
-    // point.push_back(rays_bsi[2]->SUM(y*front_Kinvs(2,1))->multiplyWithBsiHorizontal(depth));
+                                                             const std::vector<BsiAttribute<uint64_t>*> normal,
+                                                             const std::vector<BsiAttribute<uint64_t>*> rays_bsi) {
+    std::vector<BsiAttribute<uint64_t>*> point;
+    // TODO: remove cast to long when precision is implemented
+    point.push_back(rays_bsi[0]->SUM(static_cast<long>(y*front_Kinvs(0,1)))->multiplyWithBsiHorizontal(depth));
+    point.push_back(rays_bsi[1]->SUM(static_cast<long>(y*front_Kinvs(1,1)))->multiplyWithBsiHorizontal(depth));
+    point.push_back(rays_bsi[2]->SUM(static_cast<long>(y*front_Kinvs(2,1)))->multiplyWithBsiHorizontal(depth));
 
     std::vector<BsiAttribute<uint64_t>*> res;
     for (int i=0; i<normal.size(); i++) {
-        // BsiAttribute<uint64_t>* denom = normal.at(i)->multiplyByConstant(-1)->multiplyWithBsiHorizontal(point[i]);
-        res.push_back(normal[i]->SUM(1)); // TODO: divide normal.at(i) by denom
+        // BsiAttribute<uint64_t>* denom = normal[i]->multiplyWithBsiHorizontal(point[i]);
+        // HybridBitmap<u_int64_t> new_sign = denom->sign.Not();
+        // denom->sign = new_sign;
+        // std::pair<BsiAttribute<uint64_t>*, BsiAttribute<uint64_t>*> div_res = normal[i]->divide(denom);
+        // res.push_back(div_res.first);
+        // delete div_res.second;
         // delete denom;
+        res.push_back(normal[i]->multiplyByConstant(1));
     }
-    // delete point[0];
-    // delete point[1];
-    // delete point[2];
+    delete point[0];
+    delete point[1];
+    delete point[2];
     return res;
 }
 
@@ -218,15 +221,6 @@ void BsiDepthmapEstimator::AssignMatrices(BsiDepthmapEstimatorResult *result) {
         // assign nghbr
         result->nghbr.push_back(bsi.buildBsiAttributeFromVectorSigned(vec,0.5));
     }
-
-    std::vector<long> x_coord;
-    for (int i=0; i<images_.size(); i++) {
-        x_coord.push_back(i);
-    }
-    x = bsi.buildBsiAttributeFromVectorSigned(x_coord,0.5);
-    rays_bsi.push_back(x->multiplyByConstant(static_cast<int>(front_Kinvs(0,0)))->SUM(static_cast<long>(front_Kinvs(0,2))));
-    rays_bsi.push_back(x->multiplyByConstant(static_cast<int>(front_Kinvs(1,0)))->SUM(static_cast<long>(front_Kinvs(1,2))));
-    rays_bsi.push_back(x->multiplyByConstant(static_cast<int>(front_Kinvs(2,0)))->SUM(static_cast<long>(front_Kinvs(2,2))));
 }
 
 BsiAttribute<uint64_t>* BsiDepthmapEstimator::UniformRand(double low, double high, int size) {
@@ -249,6 +243,22 @@ void BsiDepthmapEstimator::RandomInitialization(BsiDepthmapEstimatorResult *resu
     std::vector<long> normal_z(result->depth[0]->rows, -1);
     int image_width = result->depth[0]->rows;
 
+    // setup rays_bsi to be used in PlaneFromDepthAndNormal
+    std::vector<long> x_coord;
+    for (int i=0; i<image_width; i++) {
+        x_coord.push_back(i);
+    }
+    BsiAttribute<uint64_t>* x = bsi.buildBsiAttributeFromVectorSigned(x_coord,0.5);
+
+    std::vector<BsiAttribute<uint64_t>*> rays_bsi; // 3 x width (depth * K.inv() * cv::Vec3d(x, 0, 1))
+    rays_bsi.push_back(x->multiplyByConstant(static_cast<int>(front_Kinvs(0,0)))->SUM(static_cast<long>(front_Kinvs(0,2))));
+    rays_bsi.push_back(x->multiplyByConstant(static_cast<int>(front_Kinvs(1,0)))->SUM(static_cast<long>(front_Kinvs(1,2))));
+    rays_bsi.push_back(x->multiplyByConstant(static_cast<int>(front_Kinvs(2,0)))->SUM(static_cast<long>(front_Kinvs(2,2))));
+
+    result->image_width = image_width;
+    result->front_Kinvs00 = static_cast<int>(front_Kinvs(0,0));
+    result->front_Kinvs02 = static_cast<long>(front_Kinvs(0,2));
+
     for (int i = hpz; i < result->depth.size() - hpz; ++i) {
         // initialize depth
         BsiAttribute<uint64_t>* depth = exp(UniformRand(log(min_depth_), log(max_depth_), image_width));
@@ -260,9 +270,11 @@ void BsiDepthmapEstimator::RandomInitialization(BsiDepthmapEstimatorResult *resu
         normal.push_back(UniformRand(-1, 1, image_width));
         normal.push_back(UniformRand(-1, 1, image_width));
         normal.push_back(bsi.buildBsiAttributeFromVectorSigned(normal_z,0.5));
+        result->point = rays_bsi[0]->SUM(static_cast<long>(i*front_Kinvs(0,1)))->multiplyWithBsiHorizontal(depth);
+        result->normal = normal[0];
 
         // // initialize plane
-        std::vector<BsiAttribute<uint64_t>*> plane = PlaneFromDepthAndNormal(i, depth, normal);
+        std::vector<BsiAttribute<uint64_t>*> plane = PlaneFromDepthAndNormal(i, result->depth[i], normal, rays_bsi);
         delete result->plane[i][0];
         delete result->plane[i][1];
         delete result->plane[i][2];
@@ -272,7 +284,7 @@ void BsiDepthmapEstimator::RandomInitialization(BsiDepthmapEstimatorResult *resu
 
         // // initialize nghbr and score
         BsiAttribute<uint64_t>* nghbr;
-        BsiAttribute<uint64_t>* score;
+        // BsiAttribute<uint64_t>* score;
         if (sample) {
             nghbr = bsi.createRandomBsi(image_width,images_bsi.size(),0.5);
             // score = ComputePlaneImageScore(i, plane, nghbr);
@@ -281,15 +293,20 @@ void BsiDepthmapEstimator::RandomInitialization(BsiDepthmapEstimatorResult *resu
 //            ComputePlaneScore(i, plane, &score, &nghbr);
         }
         delete result->nghbr[i];
-        delete result->score[i];
+        // delete result->score[i];
 
         result->nghbr[i] = nghbr;
-        result->score[i] = score;
+        // result->score[i] = score;
 
         delete normal[0];
         delete normal[1];
         delete normal[2];
+        break;
     }
+    delete rays_bsi[0];
+    delete rays_bsi[1];
+    delete rays_bsi[2];
+    delete x;
 }
 
 void BsiDepthmapEstimator::ComputeIgnoreMask(BsiDepthmapEstimatorResult *result) {}

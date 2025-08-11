@@ -144,20 +144,64 @@ def compute_depthmap(arguments):
             "Unknown depthmap method type "
             "(must be BRUTE_FORCE, PATCH_MATCH or PATCH_MATCH_SAMPLE)"
         )
-    
-    for row1,row2 in zip(bsi_depth,depth):
-        for el1,el2 in zip(row1,row2):
-            assert el1 == el2
-    for row1,row2 in zip(bsi_plane,plane):
-        for el1,el2 in zip(row1,row2):
-            for x1, x2 in zip(el1,el2):
-                assert x1 == x2
-    for row1,row2 in zip(bsi_score,score):
+    if len(bsi_depth) != len(depth):
+        raise AssertionError("length of depth is expected to be "+ str(len(depth)) + " but got " +str(len(bsi_depth)))
+    else:
+        res = True
+        for row1,row2 in zip(bsi_depth,depth):
+            if not res:
+                break
             for el1,el2 in zip(row1,row2):
-                assert el1 == el2
-    for row1,row2 in zip(bsi_nghbr,nghbr):
-        for el1,el2 in zip(row1,row2):
-            assert el1 == el2
+                if el1 != el2:
+                    res = False
+                    break
+        if not res:
+            print("wrong depth")
+
+    if len(bsi_plane) != len(plane):
+        raise AssertionError("length of plane is expected to be "+ str(len(plane)) + " but got " +str(len(bsi_plane)))
+    else:
+        res = True
+        for row1,row2 in zip(bsi_plane,plane):
+            if not res:
+                break
+            for el1,el2 in zip(row1,row2):
+                if not res:
+                    break
+                for x1, x2 in zip(el1,el2):
+                    if x1 != x2:
+                        res = False
+                        break
+        if not res:
+            print("wrong plane")
+
+    if len(bsi_score) != len(score):
+        raise AssertionError("length of score is expected to be "+ str(len(score)) + " but got " +str(len(bsi_score)))
+    else:
+        res = True
+        for row1,row2 in zip(bsi_score,score):
+            if not res:
+                break
+            for el1,el2 in zip(row1,row2):
+                if el1 != el2:
+                    res = False
+                    break
+        if not res:
+            print("wrong score")
+
+    if len(nghbr) != len(nghbr):
+        raise AssertionError("length of nghbr is expected to be "+ str(len(nghbr)) + " but got " +str(len(bsi_nghbr)))
+    else:
+        res = True
+        for row1,row2 in zip(bsi_nghbr,nghbr):
+            if not res:
+                break
+            for el1,el2 in zip(row1,row2):
+                if el1 != el2:
+                    res = False
+                    break
+        if not res:
+            print("wrong nghbr")
 
     logger.info("compute_patch_match_sample")
     good_score = score > data.config["depthmap_min_correlation_score"]
