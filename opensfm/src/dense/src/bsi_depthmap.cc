@@ -152,6 +152,8 @@ void BsiDepthmapEstimator::ProcessViewsToBsi() {
             images_bsi[i].emplace_back(bsi.buildBsiAttributeFromVectorSigned(images_[i][j],0.5));
         }
     }
+    PIHB_precalc1 = multMatrixWithConstants(multMatrices(Ks_bsi, Qs_bsi), front_Kinvs);
+    PIHB_precalc2 = multMatrixWithVector(Ks_bsi, as_bsi);
 }
 
 void BsiDepthmapEstimator::SetDepthRange(double min_depth, double max_depth,
@@ -251,13 +253,10 @@ void BsiDepthmapEstimator::RandomInitialization(BsiDepthmapEstimatorResult *resu
     BsiAttribute<uint64_t>* x = bsi.buildBsiAttributeFromVectorSigned(x_coord,0.5);
 
     std::vector<BsiAttribute<uint64_t>*> rays_bsi; // 3 x width (depth * K.inv() * cv::Vec3d(x, 0, 1))
+    // TODO: change precision when multiplying by numbers in front_Kinvs
     rays_bsi.push_back(x->multiplyByConstant(static_cast<int>(front_Kinvs(0,0)))->SUM(static_cast<long>(front_Kinvs(0,2))));
     rays_bsi.push_back(x->multiplyByConstant(static_cast<int>(front_Kinvs(1,0)))->SUM(static_cast<long>(front_Kinvs(1,2))));
     rays_bsi.push_back(x->multiplyByConstant(static_cast<int>(front_Kinvs(2,0)))->SUM(static_cast<long>(front_Kinvs(2,2))));
-
-    result->image_width = image_width;
-    result->front_Kinvs00 = static_cast<int>(front_Kinvs(0,0));
-    result->front_Kinvs02 = static_cast<long>(front_Kinvs(0,2));
 
     for (int i = hpz; i < result->depth.size() - hpz; ++i) {
         // initialize depth
@@ -270,8 +269,6 @@ void BsiDepthmapEstimator::RandomInitialization(BsiDepthmapEstimatorResult *resu
         normal.push_back(UniformRand(-1, 1, image_width));
         normal.push_back(UniformRand(-1, 1, image_width));
         normal.push_back(bsi.buildBsiAttributeFromVectorSigned(normal_z,0.5));
-        result->point = rays_bsi[0]->SUM(static_cast<long>(i*front_Kinvs(0,1)))->multiplyWithBsiHorizontal(depth);
-        result->normal = normal[0];
 
         // // initialize plane
         std::vector<BsiAttribute<uint64_t>*> plane = PlaneFromDepthAndNormal(i, result->depth[i], normal, rays_bsi);
@@ -284,19 +281,20 @@ void BsiDepthmapEstimator::RandomInitialization(BsiDepthmapEstimatorResult *resu
 
         // // initialize nghbr and score
         BsiAttribute<uint64_t>* nghbr;
-        // BsiAttribute<uint64_t>* score;
+        BsiAttribute<uint64_t>* score;
         if (sample) {
             nghbr = bsi.createRandomBsi(image_width,images_bsi.size(),0.5);
-            // score = ComputePlaneImageScore(i, plane, nghbr);
+            // TODO: for now, set nghbr for one row of pixels in an image to an integer, check later if choosing a diff nghbr for each pixel is better
+            score = ComputePlaneImageScore(i, plane, nghbr, image_width);
         } else {
             // TODO: don't implement for now, focus on compute patch match sample
-//            ComputePlaneScore(i, plane, &score, &nghbr);
+        //    ComputePlaneScore(i, plane, &score, &nghbr);
         }
         delete result->nghbr[i];
-        // delete result->score[i];
+        delete result->score[i];
 
         result->nghbr[i] = nghbr;
-        // result->score[i] = score;
+        result->score[i] = score;
 
         delete normal[0];
         delete normal[1];
@@ -501,16 +499,24 @@ void BsiDepthmapEstimator::PatchMatchUpdatePixelRow(BsiDepthmapEstimatorResult *
 
 BsiAttribute<uint64_t>* BsiDepthmapEstimator::ComputePlaneImageScore(int i,
                                                 const std::vector<BsiAttribute<uint64_t>*> &plane,
-                                                BsiAttribute<uint64_t>* other) {
-    /*std::vector<std::vector<BsiAttribute<uint64_t>*>> H = PlaneInducedHomographyBaked(Kinvs_[0], Qs_[other], as_[other],
-                                                Ks_[other], plane);
+                                                BsiAttribute<uint64_t>* other, int image_width) {
+    // calculate all homography matrices for the ith row
+    std::vector<std::vector<BsiAttribute<uint64_t>*>> H = PlaneInducedHomographyBaked(other, PIHB_precalc1, PIHB_precalc2, plane, front_Kinvs);
     int hpz = (patch_size_ - 1) / 2;
-    BsiAttribute<uint64_t>* u = (*H[0][0]) * j + (*H[0][1]) * i + H[0][2];
-    BsiAttribute<uint64_t>* v = (*H[1][0]) * j + (*H[1][1]) * i + H[1][2];
-    BsiAttribute<uint64_t>* w = (*H[2][0]) * j + (*H[2][1]) * i + H[2][2];
+    BsiSigned<uint64_t> bsi;
+    std::vector<long> x_coord;
+    for (int i=0; i<image_width; i++) {
+        x_coord.push_back(i);
+    }
+    BsiAttribute<uint64_t>* j = bsi.buildBsiAttributeFromVectorSigned(x_coord,0.5);
+    
+    BsiAttribute<uint64_t>* u = ((*H[0][0]) * j)->SUM ((*H[0][1]) * i) ->SUM (H[0][2]);
+    BsiAttribute<uint64_t>* v = ((*H[1][0]) * j)->SUM ((*H[1][1]) * i) ->SUM (H[1][2]);
+    BsiAttribute<uint64_t>* w = ((*H[2][0]) * j)->SUM ((*H[2][1]) * i) ->SUM (H[2][2]);
+    return j;
 
     // TODO: use relu to make mask, then use mask to avoid adding to ncc result
-    if (w == 0.0) {
+    /*if (w == 0.0) {
         return -1.0f;
     }
 
@@ -545,14 +551,139 @@ BsiAttribute<uint64_t>* BsiDepthmapEstimator::ComputePlaneImageScore(int i,
     return ncc.Get();*/
 }
 
-/*std::vector<std::vector<BsiAttribute<uint64_t>*>> PlaneInducedHomographyBaked(const cv::Matx33d &K1inv,
-                                                                              const std::vector<std::vector<BsiAttribute<uint64_t>*>> &Q2,
-                                                                              const std::vector<BsiAttribute<uint64_t>*> &a2,
-                                                                              const std::vector<std::vector<BsiAttribute<uint64_t>*>> &K2,
-                                                                              const std::vector<BsiAttribute<uint64_t>*> &v) {
-    // TODO: operations with elements in K1inv are scalar multiplication
-    return K2 * (Q2 + a2 * v.t()) * K1inv;
-}*/
+/*
+Multiply 2 vectors of BSI's by treating the first as 3x1, and the second as 1x3
+*/
+std::vector<std::vector<BsiAttribute<uint64_t>*>> multTranspose(const std::vector<BsiAttribute<uint64_t>*> &a, const std::vector<BsiAttribute<uint64_t>*> &b) {
+    std::vector<std::vector<BsiAttribute<uint64_t>*>> res;
+    for (int i=0;i<a.size();i++) {
+        BsiAttribute<uint64_t>* a_bsi = a[i];
+        res.push_back({});
+        for (BsiAttribute<uint64_t>* b_bsi: b) {
+            res[i].push_back(a_bsi->multiplyWithBsiHorizontal(b_bsi));
+        }
+    }
+    return res;
+}
+
+/*
+Multiply a vector of constants with a vector of BSI's by treating the first as 3x1, and the second as 1x3
+*/
+std::vector<std::vector<BsiAttribute<uint64_t>*>> multTranspose(const std::vector<int> &a, const std::vector<BsiAttribute<uint64_t>*> &b) {
+    std::vector<std::vector<BsiAttribute<uint64_t>*>> res;
+    for (int i=0;i<a.size();i++) {
+        res.push_back({});
+        for (BsiAttribute<uint64_t>* b_bsi: b) {
+            res[i].push_back(b_bsi->multiplyByConstant(a[i]));
+        }
+    }
+    return res;
+}
+
+/*
+Add a 3x3 matrix of BSI's with a 3x3 matrix of BSI's
+*/
+std::vector<std::vector<BsiAttribute<uint64_t>*>> addMatrices(const std::vector<std::vector<BsiAttribute<uint64_t>*>> &a, const std::vector<std::vector<BsiAttribute<uint64_t>*>> &b) {
+    std::vector<std::vector<BsiAttribute<uint64_t>*>> res;
+    for (int i=0;i<a.size();i++) {
+        res.push_back({});
+        for (int j=0;j<a[i].size();j++) {
+            res[i].push_back(a[i][j]->SUM(b[i][j]));
+        }
+    }
+    return res;
+}
+
+/*
+Add a 3x3 matrix of constants with a 3x3 matrix of BSI's
+*/
+std::vector<std::vector<BsiAttribute<uint64_t>*>> addMatrices(const std::vector<std::vector<int>> &a, const std::vector<std::vector<BsiAttribute<uint64_t>*>> &b) {
+    std::vector<std::vector<BsiAttribute<uint64_t>*>> res;
+    for (int i=0;i<a.size();i++) {
+        res.push_back({});
+        for (int j=0;j<3;j++) {
+            res[i].push_back(b[i][j]->SUM(static_cast<long>(a[i][j])));
+        }
+    }
+    return res;
+}
+
+/*
+Multiply a 3x3 matrix of BSI's with a 3x3 matrix of BSI's
+*/
+std::vector<std::vector<BsiAttribute<uint64_t>*>> multMatrices(const std::vector<std::vector<BsiAttribute<uint64_t>*>> &a, const std::vector<std::vector<BsiAttribute<uint64_t>*>> &b) {
+    std::vector<std::vector<BsiAttribute<uint64_t>*>> res;
+    for (int i=0;i<a.size();i++) {
+        res.push_back({});
+        for (int j=0;j<b[i].size();j++) {
+            BsiAttribute<uint64_t>* res_ij = a[i][0]->multiplyWithBsiHorizontal(b[0][j]);
+            for (int k=1; k<a[i].size(); k++) {
+                res_ij = res_ij->SUM(a[i][k]->multiplyWithBsiHorizontal(b[k][j]));
+            }
+            res[i].push_back(res_ij);
+        }
+    }
+    return res;
+}
+
+/*
+Multiply a 3x3 matrix of BSI's with a 3x3 matrix of constants
+*/
+std::vector<std::vector<BsiAttribute<uint64_t>*>> multMatrixWithConstants(const std::vector<std::vector<BsiAttribute<uint64_t>*>> &a, const cv::Matx33d &b) {
+    std::vector<std::vector<BsiAttribute<uint64_t>*>> res;
+    for (int i=0;i<3;i++) {
+        res.push_back({});
+        for (int j=0;j<3;j++) {
+            BsiAttribute<uint64_t>* res_ij = a[i][0]->multiplyByConstant(b(0,j));
+            for (int k=1; k<a[i].size(); k++) {
+                res_ij = res_ij->SUM(a[i][k]->multiplyByConstant(static_cast<int>(b(k,j))));
+            }
+            res[i].push_back(res_ij);
+        }
+    }
+    return res;
+}
+
+/*
+Multiply a 3x3 matrix of BSI's with a 3x1 vector of BSI's
+*/
+std::vector<BsiAttribute<uint64_t>*> multMatrixWithVector(const std::vector<std::vector<BsiAttribute<uint64_t>*>> &a, const std::vector<BsiAttribute<uint64_t>*> &b) {
+    std::vector<BsiAttribute<uint64_t>*> res;
+    for (int i=0;i<3;i++) {
+        BsiAttribute<uint64_t>* res_i = a[i][0]->multiplyWithBsiHorizontal(b[0]);
+        for (int k=1; k<3; k++) {
+            res_i = res_i->SUM(a[i][k]->multiplyWithBsiHorizontal(b[k]));
+        }
+        res.push_back(res_i);
+    }
+    return res;
+}
+
+/*
+Multiply a 1x3 vector of BSI's with a 3x3 matrix of constants
+*/
+std::vector<BsiAttribute<uint64_t>*> multVectorWithConstants(const std::vector<BsiAttribute<uint64_t>*> &a, const cv::Matx33d &b) {
+    std::vector<BsiAttribute<uint64_t>*> res;
+    for (int i=0;i<3;i++) {
+        BsiAttribute<uint64_t>* res_i = a[0]->multiplyByConstant(b(0,i));
+        for (int j=1;j<3;j++) {
+            res_i = res_i->SUM(a[j]->multiplyByConstant(static_cast<int>(b(j,i))));
+        }
+        res.push_back(res_i);
+    }
+    return res;
+}
+
+std::vector<std::vector<BsiAttribute<uint64_t>*>> PlaneInducedHomographyBaked(BsiAttribute<uint64_t>* other, std::vector<std::vector<BsiAttribute<uint64_t>*>> PIHB_precalc1,
+    std::vector<BsiAttribute<uint64_t>*> PIHB_precalc2, const std::vector<BsiAttribute<uint64_t>*> &v, cv::Matx33d front_Kinvs) {
+    /*
+    K2 * (Q2 + a2*v.T) * K1inv can be broken down into parts that are precalculated, then just need to calculate the part with v
+    PIHB_precalc1 = K2 * Q2 * K1inv
+    PIHB_precalc2 = K2 * a2
+    K2 * (Q2 + a2*v.T) * K1inv = PIHB_precalc1 + PIHB_precalc2 * (v.T * K1inv)
+    */
+    return addMatrices(PIHB_precalc1,multTranspose(PIHB_precalc2,multVectorWithConstants(v,front_Kinvs)));
+}
 
 /*BsiAttribute<uint64_t>* LinearInterpolation(std::vector<BsiAttribute<uint64_t>*> &image, BsiAttribute<uint64_t>* y, BsiAttribute<uint64_t>* x) {
     // TODO: mask with relu

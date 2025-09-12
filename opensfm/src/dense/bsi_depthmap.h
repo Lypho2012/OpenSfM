@@ -22,11 +22,17 @@ private:
     BsiAttribute<uint64_t>* sumw_;
 };
 
-std::vector<std::vector<BsiAttribute<uint64_t>*>> PlaneInducedHomographyBaked(const cv::Matx33d &K1inv,
-                                                                              const std::vector<std::vector<BsiAttribute<uint64_t>*>> &Q2,
-                                                                              const std::vector<BsiAttribute<uint64_t>*> &a2,
-                                                                              const std::vector<std::vector<BsiAttribute<uint64_t>*>> &K2,
-                                                                              const std::vector<BsiAttribute<uint64_t>*> &v);
+std::vector<std::vector<BsiAttribute<uint64_t>*>> PlaneInducedHomographyBaked(BsiAttribute<uint64_t>* other, std::vector<std::vector<BsiAttribute<uint64_t>*>> PIHB_precalc1,
+    std::vector<BsiAttribute<uint64_t>*> PIHB_precalc2, const std::vector<BsiAttribute<uint64_t>*> &v, cv::Matx33d front_Kinvs);
+
+std::vector<std::vector<BsiAttribute<uint64_t>*>> multTranspose(const std::vector<BsiAttribute<uint64_t>*> &a, const std::vector<BsiAttribute<uint64_t>*> &b);
+std::vector<std::vector<BsiAttribute<uint64_t>*>> multTranspose(const std::vector<int> &a, const std::vector<BsiAttribute<uint64_t>*> &b);
+std::vector<std::vector<BsiAttribute<uint64_t>*>> addMatrices(const std::vector<std::vector<BsiAttribute<uint64_t>*>> &a, const std::vector<std::vector<BsiAttribute<uint64_t>*>> &b);
+std::vector<std::vector<BsiAttribute<uint64_t>*>> addMatrices(const std::vector<std::vector<int>> &a, const std::vector<std::vector<BsiAttribute<uint64_t>*>> &b);
+std::vector<std::vector<BsiAttribute<uint64_t>*>> multMatrices(const std::vector<std::vector<BsiAttribute<uint64_t>*>> &a, const std::vector<std::vector<BsiAttribute<uint64_t>*>> &b);
+std::vector<std::vector<BsiAttribute<uint64_t>*>> multMatrixWithConstants(const std::vector<std::vector<BsiAttribute<uint64_t>*>> &a, const cv::Matx33d &b);
+std::vector<BsiAttribute<uint64_t>*> multMatrixWithVector(const std::vector<std::vector<BsiAttribute<uint64_t>*>> &a, const std::vector<BsiAttribute<uint64_t>*> &b);
+std::vector<BsiAttribute<uint64_t>*> multVectorWithConstants(const std::vector<BsiAttribute<uint64_t>*> &a, const cv::Matx33d &b);
 
 struct BsiDepthmapEstimatorResult {
     std::vector<BsiAttribute<uint64_t>*> depth; // float
@@ -68,7 +74,7 @@ void CheckPlaneImageCandidate(BsiDepthmapEstimatorResult *result, int i,
 
 BsiAttribute<uint64_t>* ComputePlaneImageScore(int i,
                                                const std::vector<BsiAttribute<uint64_t>*> &plane,
-                                               BsiAttribute<uint64_t>* other);
+                                               BsiAttribute<uint64_t>* other, int image_width);
 
 void InitializeViews(size_t num_images);
 void AddView(const double *pK, const double *pR, const double *pt,
@@ -83,8 +89,8 @@ void SetMinPatchSD(float sd);
 BsiAttribute<uint64_t>* UniformRand(double low, double high, int size);
 BsiAttribute<uint64_t>* exp(BsiAttribute<uint64_t>* bsi);
 
-std::vector<BsiAttribute<uint64_t>*> PlaneFromDepthAndNormal(int y,
-    BsiAttribute<uint64_t>* depth, const std::vector<BsiAttribute<uint64_t>*> &normal);
+std::vector<BsiAttribute<uint64_t>*> PlaneFromDepthAndNormal(int y, BsiAttribute<uint64_t>* depth, 
+    const std::vector<BsiAttribute<uint64_t>*> normal, const std::vector<BsiAttribute<uint64_t>*> rays_bsi);
 
 private:
 std::vector<std::vector<BsiAttribute<uint64_t>*>> images_bsi; // number of images x number of rows matrix
@@ -95,9 +101,9 @@ std::vector<BsiAttribute<uint64_t>*> ts_bsi;
 std::vector<std::vector<BsiAttribute<uint64_t>*>> Kinvs_bsi;
 std::vector<std::vector<BsiAttribute<uint64_t>*>> Qs_bsi;
 std::vector<BsiAttribute<uint64_t>*> as_bsi;
-BsiAttribute<uint64_t>* x; // TODO: should store all coords from 1 to result->depth[0].rows (image width)
 
-std::vector<BsiAttribute<uint64_t>*> rays_bsi; // 3 x width (depth * K.inv() * cv::Vec3d(x, 0, 1)), to be used in PlaneFromDepthAndNormal after adding y
+std::vector<std::vector<BsiAttribute<uint64_t>*>> PIHB_precalc1;
+std::vector<BsiAttribute<uint64_t>*> PIHB_precalc2;
 
 int patchmatch_iterations_;
 int patch_size_;
